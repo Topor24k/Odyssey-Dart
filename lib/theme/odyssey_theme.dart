@@ -23,6 +23,23 @@ abstract final class OdysseyColors {
   static const ember = Color(0xFFA4553A);
 }
 
+/// The in-app palette: a parchment canvas, warm white cards, obsidian
+/// forest for emphasis, aged brass for accents and a soft sage highlight.
+abstract final class AppColors {
+  static const canvas = Color(0xFFF5F1E8);
+  static const card = Color(0xFFFFFDF8);
+  static const tile = Color(0xFFEFE9DD);
+  static const line = Color(0xFFE4DBCB);
+  static const ink = Color(0xFF141D15);
+  static const body = Color(0xFF3A3D35);
+  static const muted = Color(0xFF8A8374);
+  static const sage = Color(0xFFDFE6D8);
+  static const sageInk = Color(0xFF52705A);
+  static const brass = Color(0xFF9C7A4A);
+  static const brassLight = Color(0xFFC9AA78);
+  static const alert = Color(0xFFB5683F);
+}
+
 /// Literary typography: Cormorant Garamond for display and prose, Italiana
 /// for subtitles and IBM Plex Mono for telemetry.
 abstract final class OdysseyType {
@@ -87,7 +104,7 @@ abstract final class OdysseyType {
     height: height,
   );
 
-  /// Starts every face downloading so the splash wordmark is ready in time.
+  /// Starts every face downloading so text is ready when it first shows.
   static Future<void> warmUp() {
     display(10);
     display(10, italic: true);
@@ -106,53 +123,52 @@ abstract final class OdysseyType {
 ThemeData buildOdysseyTheme() {
   final scheme =
       ColorScheme.fromSeed(
-        seedColor: OdysseyColors.brass,
+        seedColor: AppColors.ink,
         brightness: Brightness.light,
       ).copyWith(
-        primary: OdysseyColors.brass,
-        onPrimary: OdysseyColors.parchment,
-        secondary: OdysseyColors.moss,
-        onSecondary: OdysseyColors.parchment,
-        surface: OdysseyColors.parchment,
-        onSurface: OdysseyColors.ink,
-        outline: OdysseyColors.rule,
+        primary: AppColors.ink,
+        onPrimary: Colors.white,
+        secondary: AppColors.sageInk,
+        onSecondary: Colors.white,
+        surface: AppColors.canvas,
+        onSurface: AppColors.ink,
+        outline: AppColors.line,
       );
 
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: OdysseyColors.parchment,
+    scaffoldBackgroundColor: AppColors.canvas,
     splashFactory: InkRipple.splashFactory,
     textTheme: TextTheme(
-      displayLarge: OdysseyType.display(44),
-      headlineMedium: OdysseyType.display(30),
-      titleLarge: OdysseyType.display(22, weight: FontWeight.w600),
-      titleMedium: OdysseyType.display(18, weight: FontWeight.w600),
-      bodyLarge: OdysseyType.prose(18),
-      bodyMedium: OdysseyType.prose(16),
-      labelLarge: OdysseyType.mono(12, color: OdysseyColors.ink),
-      labelSmall: OdysseyType.mono(10),
+      headlineMedium: OdysseyType.sans(26, color: AppColors.ink),
+      titleLarge: OdysseyType.sans(20, color: AppColors.ink),
+      titleMedium: OdysseyType.sans(16, color: AppColors.ink),
+      bodyLarge: OdysseyType.sans(16, color: AppColors.body),
+      bodyMedium: OdysseyType.sans(14, color: AppColors.body),
+      labelLarge: OdysseyType.sans(14, color: AppColors.ink),
+      labelSmall: OdysseyType.sans(11, color: AppColors.muted),
     ),
     dividerTheme: const DividerThemeData(
-      color: OdysseyColors.rule,
-      thickness: 0.8,
-      space: 0.8,
+      color: AppColors.line,
+      thickness: 1,
+      space: 1,
     ),
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: const Color(0xFF2E2E34),
+      backgroundColor: AppColors.ink,
       contentTextStyle: OdysseyType.sans(14, color: Colors.white),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: OdysseyColors.parchment,
+      backgroundColor: AppColors.canvas,
       surfaceTintColor: Colors.transparent,
       showDragHandle: true,
-      dragHandleColor: OdysseyColors.rule,
+      dragHandleColor: AppColors.line,
     ),
     textSelectionTheme: const TextSelectionThemeData(
-      cursorColor: OdysseyColors.brass,
-      selectionHandleColor: OdysseyColors.brass,
+      cursorColor: AppColors.ink,
+      selectionHandleColor: AppColors.ink,
     ),
   );
 }

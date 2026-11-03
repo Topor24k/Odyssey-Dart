@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../home/home_placeholder.dart';
+import '../app/app_shell.dart';
+import '../data/app_store.dart';
 import 'auth_widgets.dart';
 import 'login_form.dart';
 import 'signup_form.dart';
@@ -24,7 +25,7 @@ class _AuthScreenState extends State<AuthScreen> {
   late AuthMode _mode = widget.initialMode;
   final _scroll = ScrollController();
 
-  /// The first form waits for the intro's reveal before it staggers in.
+  /// The first form waits a beat after launch before it staggers in.
   bool _firstForm = true;
 
   @override
@@ -51,10 +52,11 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _enterJournal(String name) {
     HapticFeedback.mediumImpact();
+    AppStore.instance.signIn(name);
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 600),
-        pageBuilder: (context, _, _) => HomePlaceholder(name: name),
+        pageBuilder: (context, _, _) => const AppShell(),
         transitionsBuilder: (context, animation, _, child) =>
             FadeTransition(opacity: animation, child: child),
       ),
@@ -64,7 +66,7 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final signUp = _mode == AuthMode.signUp;
-    final entranceDelay = Duration(milliseconds: _firstForm ? 550 : 60);
+    final entranceDelay = Duration(milliseconds: _firstForm ? 150 : 60);
 
     return PopScope(
       canPop: !signUp,

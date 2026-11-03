@@ -6,8 +6,8 @@ import 'validators.dart';
 
 /// Log in with email and password, or with Gmail.
 ///
-/// UI only: any well-formed email and non-empty password logs in after a
-/// short pause. There is no account backend yet.
+/// For now Log In opens the app straight away, details or not — there is no
+/// account backend yet. An empty email signs in as "Wayfarer".
 class LoginForm extends StatefulWidget {
   const LoginForm({
     super.key,
@@ -56,9 +56,8 @@ class _LoginFormState extends State<LoginForm>
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
-    if (!_form.currentState!.validate()) return;
     setState(() => _busy = true);
-    await Future<void>.delayed(const Duration(milliseconds: 1300));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     setState(() => _busy = false);
     widget.onSignedIn(nameFromEmail(_email.text));
@@ -96,7 +95,6 @@ class _LoginFormState extends State<LoginForm>
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
                 autofillHints: const [AutofillHints.email],
-                validator: validateEmail,
               ),
             ),
             const SizedBox(height: 8),
@@ -107,7 +105,6 @@ class _LoginFormState extends State<LoginForm>
                 obscure: true,
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.password],
-                validator: validateSignInPassword,
                 onSubmitted: (_) => _submit(),
                 trailing: FieldAction(
                   'Forgot?',

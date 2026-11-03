@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A plain obsidian window, so the native launch flows straight into the
-     animated Flutter splash without a white flash. -->
+<!-- A plain window in the sign-in colour, so the launch flows straight into the
+     sign-in screen without a flash. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/odyssey_obsidian" />
+    <item android:drawable="@color/odyssey_launch" />
 </layer-list>

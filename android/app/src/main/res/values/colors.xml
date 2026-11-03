@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Obsidian deep forest: matches the first frame of the Flutter splash. -->
-    <color name="odyssey_obsidian">#FF141D15</color>
+    <!-- Warm taupe: matches the top of the sign-in screen's backdrop. -->
+    <color name="odyssey_launch">#FFB7A893</color>
     <color name="ic_launcher_background">#FF141D15</color>
 </resources>

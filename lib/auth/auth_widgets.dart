@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../splash/splash_painters.dart';
 import '../theme/odyssey_theme.dart';
+import '../widgets/contours.dart';
 
 /// The auth palette: white type over a soft, blurred wash in Odyssey's
 /// brass-taupe and forest-sage tones, with obsidian forest for the main
@@ -83,9 +83,9 @@ class _MistPainter extends CustomPainter {
     );
 
     // Odyssey's survey-sheet contours, barely there.
-    for (final ring in ContourField.generate(size, seed: 23).rings) {
+    for (final ring in contourRings(size, seed: 23)) {
       canvas.drawPath(
-        ring.metric.extractPath(0, ring.metric.length),
+        ring.path,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = ring.isIndex ? 1.0 : 0.7

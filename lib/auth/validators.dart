@@ -10,9 +10,6 @@ String? validateEmail(String? value) {
 String? validateName(String? value) =>
     (value?.trim() ?? '').isEmpty ? 'Tell us what to call you.' : null;
 
-String? validateSignInPassword(String? value) =>
-    (value ?? '').isEmpty ? 'Enter your password.' : null;
-
 String? validateNewPassword(String? value) =>
     (value ?? '').length < 8 ? 'Use at least 8 characters.' : null;
 

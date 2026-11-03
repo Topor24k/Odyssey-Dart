@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12+ draws its own splash; keep it a blank obsidian screen so
-         the Flutter compass animation is the first thing anyone sees. -->
+    <!-- Android 12+ draws its own splash; keep it a blank screen in the
+         sign-in backdrop's colour so the app appears without a jump. -->
     <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
-        <item name="android:windowSplashScreenBackground">@color/odyssey_obsidian</item>
+        <item name="android:windowSplashScreenBackground">@color/odyssey_launch</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
     </style>
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">@color/odyssey_obsidian</item>
+        <item name="android:windowBackground">@color/odyssey_launch</item>
     </style>
 </resources>
