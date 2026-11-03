@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Obsidian deep forest: matches the first frame of the Flutter splash. -->
+    <color name="odyssey_obsidian">#FF141D15</color>
+    <color name="ic_launcher_background">#FF141D15</color>
+</resources>

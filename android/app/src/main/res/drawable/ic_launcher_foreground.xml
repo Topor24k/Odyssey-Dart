@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Odyssey compass: brass bezel, cardinal ticks and a needle locked on
+     north, kept inside the adaptive icon's 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:strokeColor="#FF9C7A4A"
+        android:strokeWidth="1.6"
+        android:pathData="M54,29 a25,25 0 1,1 0,50 a25,25 0 1,1 0,-50" />
+    <path
+        android:strokeColor="#669C7A4A"
+        android:strokeWidth="0.8"
+        android:pathData="M54,34 a20,20 0 1,1 0,40 a20,20 0 1,1 0,-40" />
+    <path
+        android:strokeColor="#FFC9AA78"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="M54,30.5 L54,35 M54,73 L54,77.5 M30.5,54 L35,54 M73,54 L77.5,54" />
+    <path
+        android:fillColor="#FFC9AA78"
+        android:pathData="M54,37 L57.6,54 L50.4,54 Z" />
+    <path
+        android:fillColor="#FF141D15"
+        android:strokeColor="#FF9C7A4A"
+        android:strokeWidth="1"
+        android:strokeLineJoin="round"
+        android:pathData="M54,71 L57.6,54 L50.4,54 Z" />
+    <path
+        android:fillColor="#FF141D15"
+        android:strokeColor="#FFC9AA78"
+        android:strokeWidth="1"
+        android:pathData="M54,51.6 a2.4,2.4 0 1,1 0,4.8 a2.4,2.4 0 1,1 0,-4.8" />
+</vector>
