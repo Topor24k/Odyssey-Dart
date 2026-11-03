@@ -41,9 +41,8 @@ abstract final class SplashTimeline {
     if (s <= 0) return needleFrom;
     const swing = lock - needleStart;
     if (s >= swing) return 0;
-    final free = needleFrom *
-        math.exp(-needleDamping * s) *
-        math.cos(needleOmega * s);
+    final free =
+        needleFrom * math.exp(-needleDamping * s) * math.cos(needleOmega * s);
     // Ease the last fraction of a degree into an exact lock.
     final settle = ((s - swing * 0.8) / (swing * 0.2)).clamp(0.0, 1.0);
     return free * (1 - Curves.easeIn.transform(settle));

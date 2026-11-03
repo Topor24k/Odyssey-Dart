@@ -1,9 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:odyssey/data/atlas.dart';
-import 'package:odyssey/data/geo.dart';
-import 'package:odyssey/data/odyssey_store.dart';
+import 'package:odyssey/auth/validators.dart';
 import 'package:odyssey/splash/splash_timeline.dart';
 
 void main() {
@@ -16,9 +14,11 @@ void main() {
 
     test('needle overshoots north before it settles', () {
       final swing = [
-        for (var t = SplashTimeline.needleStart;
-            t < SplashTimeline.lock;
-            t += 0.01)
+        for (
+          var t = SplashTimeline.needleStart;
+          t < SplashTimeline.lock;
+          t += 0.01
+        )
           SplashTimeline.needleAngle(t),
       ];
       expect(swing.any((a) => a > 0), isTrue, reason: 'swings past north');
@@ -36,92 +36,43 @@ void main() {
     });
   });
 
-  group('Atlas', () {
-    test('every reference resolves', () {
-      for (final r in Atlas.routes) {
-        expect(Atlas.waypointsOf(r), isNotEmpty);
-        Atlas.companion(r.keeperId);
-      }
-      for (final s in Atlas.stories) {
-        Atlas.companion(s.authorId);
-        expect(s.paragraphs.length, greaterThanOrEqualTo(3));
-      }
-      for (final e in Atlas.expeditions) {
-        Atlas.companion(e.hostId);
-        e.rosterIds.forEach(Atlas.companion);
-        if (e.routeId != null) Atlas.route(e.routeId!);
-        expect(e.rosterIds.length + 1, lessThan(e.capacity));
-      }
+  group('Email', () {
+    test('accepts well-formed addresses', () {
+      expect(validateEmail('kayeen@example.com'), isNull);
+      expect(validateEmail('  mai.thao+trips@mail.co.vn '), isNull);
     });
 
-    test('ids are unique', () {
-      Set<String> ids(Iterable<String> xs) => xs.toSet();
-      expect(ids(Atlas.waypoints.map((w) => w.id)).length,
-          Atlas.waypoints.length);
-      expect(ids(Atlas.routes.map((r) => r.id)).length, Atlas.routes.length);
-      expect(ids(Atlas.stories.map((s) => s.id)).length, Atlas.stories.length);
-    });
-
-    test('waypoints sit within Southeast Asia', () {
-      for (final w in Atlas.waypoints) {
-        expect(w.point.latitude, inInclusiveRange(-11, 29), reason: w.name);
-        expect(w.point.longitude, inInclusiveRange(92, 141), reason: w.name);
-      }
+    test('rejects empty or malformed addresses', () {
+      expect(validateEmail(''), isNotNull);
+      expect(validateEmail(null), isNotNull);
+      expect(validateEmail('kayeen'), isNotNull);
+      expect(validateEmail('kayeen@example'), isNotNull);
+      expect(validateEmail('kay een@example.com'), isNotNull);
     });
   });
 
-  group('Geo', () {
-    test('formats coordinates by hemisphere', () {
-      expect(formatLat(23.2315), 'N 23.2315°');
-      expect(formatLat(-8.4115), 'S 8.4115°');
-      expect(formatLng(105.4078), 'E 105.4078°');
-      expect(formatElevation(3726), '3,726 m');
-      expect(formatElevation(0), 'Sea level');
+  group('Passwords', () {
+    test('sign-in only needs something typed', () {
+      expect(validateSignInPassword(''), isNotNull);
+      expect(validateSignInPassword('x'), isNull);
     });
 
-    test('elevation profile passes through every waypoint', () {
-      final route = Atlas.route('r-rinjani');
-      final stops = Atlas.waypointsOf(route);
-      final profile = elevationProfile(stops);
-      final marked = profile.where((p) => p.waypoint != null).toList();
-      expect(marked.length, stops.length);
-      expect(marked.map((p) => p.elevationM),
-          stops.map((w) => w.elevationM.toDouble()));
-      for (var i = 1; i < profile.length; i++) {
-        expect(profile[i].km, greaterThanOrEqualTo(profile[i - 1].km));
-      }
-    });
-
-    test('GPX lists each waypoint once and the full route in order', () {
-      final route = Atlas.route('r-hagiang');
-      final stops = Atlas.waypointsOf(route);
-      final gpx = buildGpx(route, stops);
-      expect(gpx, startsWith('<?xml'));
-      expect('<wpt '.allMatches(gpx).length, stops.toSet().length);
-      expect('<rtept '.allMatches(gpx).length, stops.length);
-      expect(gpx, contains("Quản Bạ Heaven's Gate"));
-      expect(gpx.trim(), endsWith('</gpx>'));
+    test('new passwords need eight characters', () {
+      expect(validateNewPassword('short'), isNotNull);
+      expect(validateNewPassword('longenough'), isNull);
     });
   });
 
-  group('Store', () {
-    test('RSVP, checklist and pledge toggle', () {
-      final store = OdysseyStore.instance;
-      expect(store.isGoing('x-mekong'), isFalse);
-      store.toggleRsvp('x-mekong');
-      expect(store.isGoing('x-mekong'), isTrue);
-      store.togglePacked('x-mekong', 2);
-      expect(store.isPacked('x-mekong', 2), isTrue);
-      expect(store.packedCount('x-mekong'), 1);
-      store.togglePledge();
-      expect(store.pledgedOn, isNotNull);
+  group('Names', () {
+    test('a name is required', () {
+      expect(validateName('  '), isNotNull);
+      expect(validateName('Kayeen'), isNull);
     });
 
-    test('showOnMap switches to the map tab', () {
-      final store = OdysseyStore.instance;
-      store.showOnMap(const MapFocus.route('r-mekong'));
-      expect(store.tab.value, 2);
-      expect(store.mapFocus.value?.routeId, 'r-mekong');
+    test('display name comes from the email', () {
+      expect(nameFromEmail('kayeen.campana@example.com'), 'Kayeen');
+      expect(nameFromEmail('MAI_thao@x.vn'), 'Mai');
+      expect(nameFromEmail('@x.com'), 'Wayfarer');
     });
   });
 }

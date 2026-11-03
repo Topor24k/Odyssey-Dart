@@ -9,47 +9,47 @@ import '../theme/odyssey_theme.dart';
 /// brass ring — the journal unfolding out of the compass.
 class CircularRevealRoute<T> extends PageRouteBuilder<T> {
   CircularRevealRoute({required WidgetBuilder builder, required Offset center})
-      : super(
-          transitionDuration: const Duration(milliseconds: 950),
-          pageBuilder: (context, _, _) => builder(context),
-          transitionsBuilder: (context, animation, _, child) {
-            final eased = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeInOutCubic,
-            );
-            return AnimatedBuilder(
-              animation: eased,
-              child: child,
-              builder: (context, child) {
-                final f = eased.value;
-                if (f >= 1) return child!;
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ClipPath(
-                      clipper: _CircleClipper(center, f),
-                      child: Transform.scale(
-                        scale: lerpDouble(1.06, 1, f),
-                        child: child,
-                      ),
+    : super(
+        transitionDuration: const Duration(milliseconds: 950),
+        pageBuilder: (context, _, _) => builder(context),
+        transitionsBuilder: (context, animation, _, child) {
+          final eased = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOutCubic,
+          );
+          return AnimatedBuilder(
+            animation: eased,
+            child: child,
+            builder: (context, child) {
+              final f = eased.value;
+              if (f >= 1) return child!;
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipPath(
+                    clipper: _CircleClipper(center, f),
+                    child: Transform.scale(
+                      scale: lerpDouble(1.06, 1, f),
+                      child: child,
                     ),
-                    IgnorePointer(
-                      child: CustomPaint(painter: _RingPainter(center, f)),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
+                  ),
+                  IgnorePointer(
+                    child: CustomPaint(painter: _RingPainter(center, f)),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
 }
 
 double _coverRadius(Size size, Offset center) => [
-      Offset.zero,
-      Offset(size.width, 0),
-      Offset(0, size.height),
-      Offset(size.width, size.height),
-    ].map((corner) => (corner - center).distance).reduce(math.max);
+  Offset.zero,
+  Offset(size.width, 0),
+  Offset(0, size.height),
+  Offset(size.width, size.height),
+].map((corner) => (corner - center).distance).reduce(math.max);
 
 class _CircleClipper extends CustomClipper<Path> {
   _CircleClipper(this.center, this.fraction);
@@ -59,10 +59,12 @@ class _CircleClipper extends CustomClipper<Path> {
 
   @override
   Path getClip(Size size) => Path()
-    ..addOval(Rect.fromCircle(
-      center: center,
-      radius: _coverRadius(size, center) * fraction,
-    ));
+    ..addOval(
+      Rect.fromCircle(
+        center: center,
+        radius: _coverRadius(size, center) * fraction,
+      ),
+    );
 
   @override
   bool shouldReclip(_CircleClipper old) =>

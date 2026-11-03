@@ -10,7 +10,7 @@ import 'splash_timeline.dart';
 /// fourth ring is an index contour, drawn heavier, as on a survey sheet.
 class ContourField {
   ContourField.generate(Size size, {int seed = 11})
-      : rings = _generate(size, seed);
+    : rings = _generate(size, seed);
 
   final List<ContourRing> rings;
 
@@ -36,11 +36,13 @@ class ContourField {
         final radius = (16 + k * 24) * unit;
         final centre = origin + Offset.fromDirection(drift, k * 3.2 * unit);
         final path = _ring(centre, radius, phases, 0.55 + k * 0.07);
-        rings.add(ContourRing(
-          metric: path.computeMetrics().first,
-          isIndex: k % 4 == 3,
-          delay: a * 0.12 + k * 0.07,
-        ));
+        rings.add(
+          ContourRing(
+            metric: path.computeMetrics().first,
+            isIndex: k % 4 == 3,
+            delay: a * 0.12 + k * 0.07,
+          ),
+        );
       }
     }
     return rings;
@@ -64,7 +66,8 @@ class ContourField {
     }
     // Quadratic segments through the midpoints give a smooth closed curve.
     Offset mid(Offset a, Offset b) => Offset.lerp(a, b, 0.5)!;
-    final path = Path()..moveTo(mid(pts.last, pts.first).dx, mid(pts.last, pts.first).dy);
+    final path = Path()
+      ..moveTo(mid(pts.last, pts.first).dx, mid(pts.last, pts.first).dy);
     for (var i = 0; i < n; i++) {
       final p = pts[i];
       final m = mid(p, pts[(i + 1) % n]);
@@ -111,17 +114,17 @@ class SplashBackdropPainter extends CustomPainter {
     canvas.translate(math.sin(t * 0.7) * 3, -t * 4);
     final (start, end) = SplashTimeline.contours;
     for (final ring in field.rings) {
-      final p = SplashTimeline.progress(
-        t,
-        (start + ring.delay, end + ring.delay * 0.5),
-        Curves.easeInOutCubic,
-      );
+      final p = SplashTimeline.progress(t, (
+        start + ring.delay,
+        end + ring.delay * 0.5,
+      ), Curves.easeInOutCubic);
       if (p <= 0) continue;
       final paint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = ring.isIndex ? 1.0 : 0.6
-        ..color = OdysseyColors.brassLight
-            .withValues(alpha: (ring.isIndex ? 0.17 : 0.09) * p.clamp(0, 1));
+        ..color = OdysseyColors.brassLight.withValues(
+          alpha: (ring.isIndex ? 0.17 : 0.09) * p.clamp(0, 1),
+        );
       canvas.drawPath(
         ring.metric.extractPath(0, ring.metric.length * p),
         paint,
@@ -138,9 +141,12 @@ class SplashBackdropPainter extends CustomPainter {
 /// The compass rose: a self-drawing bezel, calibration ticks, a needle that
 /// swings onto north and a ripple when it locks.
 class CompassPainter extends CustomPainter {
-  CompassPainter({required this.t});
+  CompassPainter({required this.t, this.showNorth = true});
 
   final double t;
+
+  /// Draws the "N" above the bezel; small emblems leave it out.
+  final bool showNorth;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -157,19 +163,20 @@ class CompassPainter extends CustomPainter {
       c,
       r * 1.6,
       Paint()
-        ..shader = RadialGradient(colors: [
-          OdysseyColors.brassLight.withValues(alpha: glow),
-          OdysseyColors.brassLight.withValues(alpha: 0),
-        ]).createShader(Rect.fromCircle(center: c, radius: r * 1.6)),
+        ..shader = RadialGradient(
+          colors: [
+            OdysseyColors.brassLight.withValues(alpha: glow),
+            OdysseyColors.brassLight.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromCircle(center: c, radius: r * 1.6)),
     );
 
     // Lock ripples.
     for (var i = 0; i < 2; i++) {
-      final p = SplashTimeline.progress(
-        t,
-        (lock + i * 0.18, lock + i * 0.18 + 0.85),
-        Curves.easeOutCubic,
-      );
+      final p = SplashTimeline.progress(t, (
+        lock + i * 0.18,
+        lock + i * 0.18 + 0.85,
+      ), Curves.easeOutCubic);
       if (p <= 0 || p >= 1) continue;
       canvas.drawCircle(
         c,
@@ -183,7 +190,10 @@ class CompassPainter extends CustomPainter {
 
     // Bezel, drawn clockwise from north with a spark at its head.
     final bezel = SplashTimeline.progress(
-        t, SplashTimeline.bezel, Curves.easeInOutCubic);
+      t,
+      SplashTimeline.bezel,
+      Curves.easeInOutCubic,
+    );
     if (bezel > 0) {
       final rect = Rect.fromCircle(center: c, radius: r);
       canvas.drawArc(
@@ -197,8 +207,8 @@ class CompassPainter extends CustomPainter {
           ..color = OdysseyColors.brass,
       );
       if (bezel < 1) {
-        final head = c +
-            Offset.fromDirection(-math.pi / 2 + math.pi * 2 * bezel, r);
+        final head =
+            c + Offset.fromDirection(-math.pi / 2 + math.pi * 2 * bezel, r);
         canvas.drawCircle(
           head,
           5,
@@ -224,7 +234,10 @@ class CompassPainter extends CustomPainter {
 
     // 72 calibration ticks, one every five degrees, sweeping in.
     final ticks = SplashTimeline.progress(
-        t, SplashTimeline.ticks, Curves.easeOutCubic);
+      t,
+      SplashTimeline.ticks,
+      Curves.easeOutCubic,
+    );
     for (var i = 0; i < 72; i++) {
       final local = (ticks * 72 - i).clamp(0.0, 1.0);
       if (local <= 0) break;
@@ -244,8 +257,11 @@ class CompassPainter extends CustomPainter {
 
     // North letter, revealed as the needle finds it.
     final north = SplashTimeline.progress(
-        t, SplashTimeline.north, Curves.easeOutCubic);
-    if (north > 0) {
+      t,
+      SplashTimeline.north,
+      Curves.easeOutCubic,
+    );
+    if (showNorth && north > 0) {
       final label = TextPainter(
         text: TextSpan(
           text: 'N',
@@ -285,14 +301,10 @@ class CompassPainter extends CustomPainter {
       canvas.drawPath(
         northHalf,
         Paint()
-          ..shader = ui.Gradient.linear(
-            Offset(0, -tip),
-            Offset.zero,
-            [
-              OdysseyColors.brassLight.withValues(alpha: needle),
-              OdysseyColors.brass.withValues(alpha: needle),
-            ],
-          ),
+          ..shader = ui.Gradient.linear(Offset(0, -tip), Offset.zero, [
+            OdysseyColors.brassLight.withValues(alpha: needle),
+            OdysseyColors.brass.withValues(alpha: needle),
+          ]),
       );
       canvas.drawLine(
         Offset(0, -tip),
@@ -332,7 +344,8 @@ class CompassPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CompassPainter old) => old.t != t;
+  bool shouldRepaint(CompassPainter old) =>
+      old.t != t || old.showNorth != showNorth;
 }
 
 /// A hairline brass rule that draws outward from a small central diamond.

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 /// aged brass instruments.
 abstract final class OdysseyColors {
   static const parchment = Color(0xFFF8F5EE);
+
   static const parchmentDeep = Color(0xFFEFE8D9);
   static const vellum = Color(0xFFE5DBC7);
   static const rule = Color(0xFFDCD2BF);
@@ -32,33 +33,30 @@ abstract final class OdysseyType {
     bool italic = false,
     double? height,
     double letterSpacing = 0,
-  }) =>
-      GoogleFonts.cormorantGaramond(
-        fontSize: size,
-        color: color,
-        fontWeight: weight,
-        fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-        height: height,
-        letterSpacing: letterSpacing,
-      );
+  }) => GoogleFonts.cormorantGaramond(
+    fontSize: size,
+    color: color,
+    fontWeight: weight,
+    fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+    height: height,
+    letterSpacing: letterSpacing,
+  );
 
   static TextStyle prose(
     double size, {
     Color color = OdysseyColors.ink,
     bool italic = false,
-  }) =>
-      display(size, color: color, italic: italic, height: 1.55);
+  }) => display(size, color: color, italic: italic, height: 1.55);
 
   static TextStyle subtitle(
     double size, {
     Color color = OdysseyColors.inkSoft,
     double letterSpacing = 1.2,
-  }) =>
-      GoogleFonts.italiana(
-        fontSize: size,
-        color: color,
-        letterSpacing: letterSpacing,
-      );
+  }) => GoogleFonts.italiana(
+    fontSize: size,
+    color: color,
+    letterSpacing: letterSpacing,
+  );
 
   static TextStyle mono(
     double size, {
@@ -66,14 +64,28 @@ abstract final class OdysseyType {
     FontWeight weight = FontWeight.w400,
     double letterSpacing = 1.1,
     double? height,
-  }) =>
-      GoogleFonts.ibmPlexMono(
-        fontSize: size,
-        color: color,
-        fontWeight: weight,
-        letterSpacing: letterSpacing,
-        height: height,
-      );
+  }) => GoogleFonts.ibmPlexMono(
+    fontSize: size,
+    color: color,
+    fontWeight: weight,
+    letterSpacing: letterSpacing,
+    height: height,
+  );
+
+  /// Clean sans-serif for the minimalist sign-in and sign-up screens.
+  static TextStyle sans(
+    double size, {
+    Color color = OdysseyColors.ink,
+    FontWeight weight = FontWeight.w400,
+    double letterSpacing = 0,
+    double? height,
+  }) => GoogleFonts.inter(
+    fontSize: size,
+    color: color,
+    fontWeight: weight,
+    letterSpacing: letterSpacing,
+    height: height,
+  );
 
   /// Starts every face downloading so the splash wordmark is ready in time.
   static Future<void> warmUp() {
@@ -83,23 +95,28 @@ abstract final class OdysseyType {
     subtitle(10);
     mono(10);
     mono(10, weight: FontWeight.w500);
+    sans(10);
+    sans(10, weight: FontWeight.w500);
+    sans(10, weight: FontWeight.w600);
+    sans(10, weight: FontWeight.w700);
     return GoogleFonts.pendingFonts();
   }
 }
 
 ThemeData buildOdysseyTheme() {
-  final scheme = ColorScheme.fromSeed(
-    seedColor: OdysseyColors.brass,
-    brightness: Brightness.light,
-  ).copyWith(
-    primary: OdysseyColors.brass,
-    onPrimary: OdysseyColors.parchment,
-    secondary: OdysseyColors.moss,
-    onSecondary: OdysseyColors.parchment,
-    surface: OdysseyColors.parchment,
-    onSurface: OdysseyColors.ink,
-    outline: OdysseyColors.rule,
-  );
+  final scheme =
+      ColorScheme.fromSeed(
+        seedColor: OdysseyColors.brass,
+        brightness: Brightness.light,
+      ).copyWith(
+        primary: OdysseyColors.brass,
+        onPrimary: OdysseyColors.parchment,
+        secondary: OdysseyColors.moss,
+        onSecondary: OdysseyColors.parchment,
+        surface: OdysseyColors.parchment,
+        onSurface: OdysseyColors.ink,
+        outline: OdysseyColors.rule,
+      );
 
   return ThemeData(
     useMaterial3: true,
@@ -122,10 +139,10 @@ ThemeData buildOdysseyTheme() {
       space: 0.8,
     ),
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: OdysseyColors.forest,
-      contentTextStyle: OdysseyType.mono(12, color: OdysseyColors.parchment),
+      backgroundColor: const Color(0xFF2E2E34),
+      contentTextStyle: OdysseyType.sans(14, color: Colors.white),
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: OdysseyColors.parchment,

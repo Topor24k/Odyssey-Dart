@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'screens/home_shell.dart';
+import 'auth/auth_screen.dart';
 import 'splash/splash_screen.dart';
 import 'theme/odyssey_theme.dart';
 
@@ -21,7 +21,7 @@ class OdysseyApp extends StatelessWidget {
       title: 'Odyssey',
       debugShowCheckedModeBanner: false,
       theme: buildOdysseyTheme(),
-      home: SplashScreen(next: (_) => const HomeShell()),
+      home: SplashScreen(next: (_) => const AuthScreen()),
     );
   }
 }

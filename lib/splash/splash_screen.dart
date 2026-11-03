@@ -4,9 +4,6 @@ import 'dart:ui' show ImageFilter, lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../data/atlas.dart';
-import '../data/geo.dart';
-import '../data/models.dart';
 import '../theme/odyssey_theme.dart';
 import 'reveal_route.dart';
 import 'splash_painters.dart';
@@ -33,8 +30,7 @@ class _SplashScreenState extends State<SplashScreen>
     duration: SplashTimeline.duration,
   );
   final SplashSound _sound = SplashSound();
-  final Waypoint _bearing =
-      Atlas.waypoints[math.Random().nextInt(Atlas.waypoints.length)];
+  final _Bearing _bearing = _bearings[math.Random().nextInt(_bearings.length)];
 
   ContourField? _field;
   Size? _fieldSize;
@@ -58,9 +54,9 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _start() async {
     OdysseyType.warmUp().ignore();
     await _sound.prepare().timeout(
-          const Duration(milliseconds: 800),
-          onTimeout: () {},
-        );
+      const Duration(milliseconds: 800),
+      onTimeout: () {},
+    );
     if (!mounted) return;
     _clock.forward();
     _sound.play();
@@ -126,13 +122,19 @@ class _SplashScreenState extends State<SplashScreen>
     final diameter = math.min(size.width * 0.48, 200.0);
     const block = 150.0;
     final rise = SplashTimeline.progress(
-        t, SplashTimeline.rise, Curves.easeInOutCubic);
+      t,
+      SplashTimeline.rise,
+      Curves.easeInOutCubic,
+    );
     final center = size.center(Offset.zero);
     final compass = Offset(center.dx, center.dy - rise * block / 2);
     _revealCenter = compass;
     final textTop = center.dy - block / 2 + diameter * 0.29 + 30;
     final tagline = SplashTimeline.progress(
-        t, SplashTimeline.tagline, Curves.easeOut);
+      t,
+      SplashTimeline.tagline,
+      Curves.easeOut,
+    );
 
     return Stack(
       children: [
@@ -187,17 +189,26 @@ class _TitleBlock extends StatelessWidget {
   const _TitleBlock({required this.t, required this.bearing});
 
   final double t;
-  final Waypoint bearing;
+  final _Bearing bearing;
 
   @override
   Widget build(BuildContext context) {
     final rule = SplashTimeline.progress(
-        t, SplashTimeline.rule, Curves.easeOutCubic);
+      t,
+      SplashTimeline.rule,
+      Curves.easeOutCubic,
+    );
     final subtitle = SplashTimeline.progress(
-        t, SplashTimeline.subtitle, Curves.easeOut);
+      t,
+      SplashTimeline.subtitle,
+      Curves.easeOut,
+    );
     final coords = SplashTimeline.progress(t, SplashTimeline.coordinates);
     final name = SplashTimeline.progress(
-        t, SplashTimeline.bearingName, Curves.easeOut);
+      t,
+      SplashTimeline.bearingName,
+      Curves.easeOut,
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -206,15 +217,25 @@ class _TitleBlock extends StatelessWidget {
         const SizedBox(height: 12),
         CustomPaint(size: const Size(190, 10), painter: RulePainter(rule)),
         const SizedBox(height: 14),
+        // The tracking starts wide enough to exceed a narrow phone. Keep it
+        // on one line, overflowing evenly on both sides, so it never wraps
+        // and nudges the lines below.
         Opacity(
           opacity: subtitle,
-          child: Text(
-            'SOUTHEAST ASIA EXPEDITION NETWORK',
-            textAlign: TextAlign.center,
-            style: OdysseyType.subtitle(
-              12,
-              color: OdysseyColors.brassLight,
-              letterSpacing: lerpDouble(7, 3.2, subtitle)!,
+          child: SizedBox(
+            height: 16,
+            child: OverflowBox(
+              maxWidth: double.infinity,
+              child: Text(
+                'SOUTHEAST ASIA EXPEDITION NETWORK',
+                maxLines: 1,
+                softWrap: false,
+                style: OdysseyType.subtitle(
+                  12,
+                  color: OdysseyColors.brassLight,
+                  letterSpacing: lerpDouble(7, 3.2, subtitle)!,
+                ),
+              ),
             ),
           ),
         ),
@@ -222,7 +243,7 @@ class _TitleBlock extends StatelessWidget {
         Opacity(
           opacity: (coords * 4).clamp(0, 1),
           child: Text(
-            _scramble(formatLatLng(bearing.point), coords),
+            _scramble(bearing.coordinates, coords),
             style: OdysseyType.mono(
               11,
               color: OdysseyColors.parchment.withValues(alpha: 0.78),
@@ -309,11 +330,10 @@ class _Wordmark extends StatelessWidget {
     TextStyle style,
   ) {
     final delay = (index - 3).abs() * 0.07;
-    final p = SplashTimeline.progress(
-      t,
-      (start + delay, start + delay + 0.55),
-      Curves.easeOutCubic,
-    );
+    final p = SplashTimeline.progress(t, (
+      start + delay,
+      start + delay + 0.55,
+    ), Curves.easeOutCubic);
     Widget glyph = Text(letter, style: style);
     if (p < 0.98) {
       final sigma = (1 - p) * 6;
@@ -334,3 +354,29 @@ class _Wordmark extends StatelessWidget {
     );
   }
 }
+
+/// A field waypoint the intro's coordinates can lock onto.
+class _Bearing {
+  const _Bearing(this.name, this.lat, this.lng);
+
+  final String name;
+  final double lat;
+  final double lng;
+
+  /// "N 23.2315° · E 105.4078°".
+  String get coordinates =>
+      '${lat >= 0 ? 'N' : 'S'} ${lat.abs().toStringAsFixed(4)}° · '
+      '${lng >= 0 ? 'E' : 'W'} ${lng.abs().toStringAsFixed(4)}°';
+}
+
+const _bearings = [
+  _Bearing('Mã Pí Lèng Pass', 23.2315, 105.4078),
+  _Bearing('Doi Inthanon Summit', 18.5883, 98.4867),
+  _Bearing('Pakbeng', 19.8936, 101.1336),
+  _Bearing('Beng Mealea', 13.4762, 104.2383),
+  _Bearing('Batad Amphitheatre', 16.9693, 121.1080),
+  _Bearing('Linapacan Islands', 11.4700, 119.8700),
+  _Bearing('Chew Jetty', 5.4128, 100.3398),
+  _Bearing('Segara Anak Lake', -8.4060, 116.4080),
+  _Bearing('Labuan Bajo Harbour', -8.4964, 119.8877),
+];
