@@ -1,13 +1,13 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data/app_store.dart';
 import '../data/models.dart';
 import '../data/sample.dart';
 import '../theme/odyssey_theme.dart';
 import '../widgets/kit.dart';
-import '../widgets/scene.dart';
+import '../widgets/photo.dart';
+import '../widgets/photo_tools.dart';
 
 /// The create menu behind the "+" button.
 Future<void> showCreateSheet(BuildContext context) {
@@ -37,21 +37,22 @@ Future<void> showCreateSheet(BuildContext context) {
               ),
               const SizedBox(height: 2),
               Text(
-                'Share the road with your circle.',
+                'Everything you write is kept in your journal.',
                 style: OdysseyType.sans(13.5, color: AppColors.muted),
               ),
               const SizedBox(height: 16),
               _CreateOption(
                 icon: Icons.auto_stories_outlined,
-                title: 'Story post',
-                subtitle: 'Write about a journey, with a title and cover',
-                onTap: () => then(() => showStoryComposer(context)),
+                title: 'Story',
+                subtitle: 'A journey with a title and photos',
+                onTap: () => then(() => showWriteSheet(context)),
               ),
               _CreateOption(
                 icon: Icons.notes_rounded,
-                title: 'Text post',
-                subtitle: 'A quick thought, tip or road update',
-                onTap: () => then(() => showTextComposer(context)),
+                title: 'Note',
+                subtitle: 'A quick thought or tip, with one photo if you like',
+                onTap: () =>
+                    then(() => showWriteSheet(context, kind: EntryKind.note)),
               ),
               _CreateOption(
                 icon: Icons.mail_outline_rounded,
@@ -124,12 +125,21 @@ class _CreateOption extends StatelessWidget {
   }
 }
 
-void _posted(BuildContext context, String message) {
-  AppStore.instance.tab.value = 0;
+/// After posting: a little bump, then to Moments if it was shared, or to
+/// the journal if it was kept private.
+void _posted(BuildContext context, String message, {bool shared = true}) {
+  HapticFeedback.mediumImpact();
+  AppStore.instance.tab.value = shared ? 0 : 3;
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(message)));
 }
+
+List<String> _paragraphs(String text) => text
+    .split(RegExp(r'\n\s*\n'))
+    .map((p) => p.trim())
+    .where((p) => p.isNotEmpty)
+    .toList();
 
 typedef _Fields = List<TextEditingController>;
 
@@ -143,6 +153,8 @@ Future<void> _showComposer(
   required List<Widget> Function(_Fields fields, VoidCallback refresh) build,
   required bool Function(_Fields fields) ready,
   required void Function(_Fields fields) onPost,
+  String Function()? action,
+  List<String> initial = const [],
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -153,6 +165,8 @@ Future<void> _showComposer(
       build: build,
       ready: ready,
       onPost: onPost,
+      action: action ?? () => 'Post',
+      initial: initial,
     ),
   );
 }
@@ -164,6 +178,8 @@ class _ComposerSheet extends StatefulWidget {
     required this.build,
     required this.ready,
     required this.onPost,
+    required this.action,
+    required this.initial,
   });
 
   final String title;
@@ -172,6 +188,12 @@ class _ComposerSheet extends StatefulWidget {
   final bool Function(_Fields fields) ready;
   final void Function(_Fields fields) onPost;
 
+  /// The label on the button: "Post", or "Save" for a private entry.
+  final String Function() action;
+
+  /// Text the fields start with, in order.
+  final List<String> initial;
+
   @override
   State<_ComposerSheet> createState() => _ComposerSheetState();
 }
@@ -179,8 +201,15 @@ class _ComposerSheet extends StatefulWidget {
 class _ComposerSheetState extends State<_ComposerSheet> {
   late final _Fields _fields = List.generate(
     widget.fieldCount,
-    (_) => TextEditingController(),
+    (i) => TextEditingController(
+      text: i < widget.initial.length ? widget.initial[i] : null,
+    ),
   );
+
+  void _refresh() {
+    // Photo picking finishes after a pause; the sheet may be gone by then.
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -227,19 +256,23 @@ class _ComposerSheetState extends State<_ComposerSheet> {
                             Navigator.of(context).pop();
                           }
                         : null,
-                    child: Text(
-                      'Post',
-                      style: OdysseyType.sans(
-                        14,
-                        color: ready ? Colors.white : AppColors.muted,
-                        weight: FontWeight.w600,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Text(
+                        widget.action(),
+                        key: ValueKey(widget.action()),
+                        style: OdysseyType.sans(
+                          14,
+                          color: ready ? Colors.white : AppColors.muted,
+                          weight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              ...widget.build(_fields, () => setState(() {})),
+              ...widget.build(_fields, _refresh),
             ],
           ),
         ),
@@ -248,61 +281,162 @@ class _ComposerSheetState extends State<_ComposerSheet> {
   }
 }
 
-Future<void> showTextComposer(BuildContext context) {
-  final store = AppStore.instance;
-  return _showComposer(
-    context,
-    title: 'Text post',
-    fieldCount: 2,
-    ready: (f) => f[0].text.trim().isNotEmpty,
-    build: (f, refresh) => [
-      SoftField(
-        controller: f[0],
-        hint: 'What\'s happening on the road?',
-        minLines: 4,
-        maxLines: 8,
-        onChanged: (_) => refresh(),
+/// "Share to Moments" on or off. Off keeps it in your journal only.
+class _ShareSwitch extends StatelessWidget {
+  const _ShareSwitch({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+      color: value ? AppColors.sage : AppColors.card,
+      onTap: () => onChanged(!value),
+      child: Row(
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            transitionBuilder: (child, animation) =>
+                ScaleTransition(scale: animation, child: child),
+            child: Icon(
+              value ? Icons.public : Icons.lock_outline,
+              key: ValueKey(value),
+              size: 20,
+              color: AppColors.ink,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Share to Moments',
+                  style: OdysseyType.sans(
+                    14.5,
+                    color: AppColors.ink,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  value
+                      ? 'Your circle sees it. It stays in your journal too.'
+                      : 'Only you can see it, in your journal.',
+                  style: OdysseyType.sans(12, color: AppColors.body),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            activeTrackColor: AppColors.ink,
+            onChanged: onChanged,
+          ),
+        ],
       ),
-      const SizedBox(height: 12),
-      SoftField(
-        controller: f[1],
-        hint: 'Where are you? (optional)',
-        icon: Icons.place_outlined,
-        textCapitalization: TextCapitalization.words,
-      ),
-    ],
-    onPost: (f) {
-      final place = f[1].text.trim();
-      store.addPost(
-        TextPost(
-          id: store.newId('post'),
-          authorId: 'me',
-          ago: 'Just now',
-          text: f[0].text.trim(),
-          place: place.isEmpty ? null : place,
-        ),
-      );
-      _posted(context, 'Posted to your feed.');
-    },
-  );
+    );
+  }
 }
 
-Future<void> showStoryComposer(BuildContext context) {
+/// Write a story or a note. Both are kept in your journal, and posted to
+/// Moments too unless you keep them as a private draft.
+///
+/// A story needs a title and at least one photo, and can have several. A
+/// note can have one photo, or none. Written [from] a plan you've been on,
+/// the title and place start filled in and the entry is linked to the plan.
+Future<void> showWriteSheet(
+  BuildContext context, {
+  EntryKind kind = EntryKind.story,
+  bool share = true,
+  bool chooseKind = false,
+  PlanItem? from,
+}) {
   final store = AppStore.instance;
+  var current = kind;
+  var shared = share;
+  var storyPhotos = <Photo>[];
+  Photo? notePhoto;
+  bool isStory() => current == EntryKind.story;
+
   return _showComposer(
     context,
-    title: 'Story post',
+    title: from != null
+        ? 'Write about it'
+        : (chooseKind ? 'Journal entry' : (isStory() ? 'Story' : 'Note')),
     fieldCount: 3,
-    ready: (f) => f[0].text.trim().isNotEmpty && f[2].text.trim().isNotEmpty,
+    initial: [from?.title ?? '', from?.place ?? '', ''],
+    action: () => shared ? 'Post' : 'Save draft',
+    ready: (f) =>
+        f[2].text.trim().isNotEmpty &&
+        (!isStory() || (f[0].text.trim().isNotEmpty && storyPhotos.isNotEmpty)),
     build: (f, refresh) => [
-      SoftField(
-        controller: f[0],
-        label: 'Title',
-        hint: 'The Fog Does Not Lift at Mã Pí Lèng',
-        textCapitalization: TextCapitalization.words,
-        onChanged: (_) => refresh(),
-      ),
-      const SizedBox(height: 12),
+      if (chooseKind) ...[
+        _KindToggle(
+          value: current,
+          onChanged: (k) {
+            current = k;
+            refresh();
+          },
+        ),
+        const SizedBox(height: 16),
+      ],
+      if (isStory()) ...[
+        Row(
+          children: [
+            Text('PHOTOS', style: OdysseyType.caps(10)),
+            const SizedBox(width: 8),
+            Text(
+              storyPhotos.isEmpty
+                  ? 'At least one'
+                  : '${storyPhotos.length} added',
+              style: OdysseyType.sans(
+                11.5,
+                color: storyPhotos.isEmpty ? AppColors.alert : AppColors.muted,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        PhotoStrip(
+          photos: storyPhotos,
+          onChanged: (photos) {
+            storyPhotos = photos;
+            refresh();
+          },
+        ),
+      ] else ...[
+        Row(
+          children: [
+            Text('PHOTO', style: OdysseyType.caps(10)),
+            const SizedBox(width: 8),
+            Text(
+              'Optional · one only',
+              style: OdysseyType.sans(11.5, color: AppColors.muted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        PhotoSlot(
+          photo: notePhoto,
+          onChanged: (photo) {
+            notePhoto = photo;
+            refresh();
+          },
+        ),
+      ],
+      const SizedBox(height: 16),
+      if (isStory()) ...[
+        SoftField(
+          controller: f[0],
+          label: 'Title',
+          hint: 'The Fog Does Not Lift at Mã Pí Lèng',
+          textCapitalization: TextCapitalization.words,
+          onChanged: (_) => refresh(),
+        ),
+        const SizedBox(height: 12),
+      ],
       SoftField(
         controller: f[1],
         label: 'Where',
@@ -313,41 +447,119 @@ Future<void> showStoryComposer(BuildContext context) {
       const SizedBox(height: 12),
       SoftField(
         controller: f[2],
-        label: 'Your story',
-        hint: 'Start with the moment you remember first…',
-        minLines: 6,
+        label: isStory() ? 'Your story' : 'Your note',
+        hint: isStory()
+            ? 'Start with the moment you remember first…'
+            : "What's happening on the road?",
+        minLines: isStory() ? 6 : 4,
         maxLines: 12,
         onChanged: (_) => refresh(),
+      ),
+      const SizedBox(height: 12),
+      _ShareSwitch(
+        value: shared,
+        onChanged: (v) {
+          shared = v;
+          refresh();
+        },
       ),
     ],
     onPost: (f) {
       final title = f[0].text.trim();
       final place = f[1].text.trim();
-      final text = f[2].text.trim();
-      final paragraphs = text
-          .split(RegExp(r'\n\s*\n'))
-          .map((p) => p.trim())
-          .where((p) => p.isNotEmpty)
-          .toList();
-      final (motif, seed) = store.sceneFor(title);
-      final words = text.split(RegExp(r'\s+')).length;
-      store.addPost(
-        StoryPost(
-          id: store.newId('post'),
-          authorId: 'me',
-          ago: 'Just now',
-          title: title,
-          excerpt: text.length > 140 ? '${text.substring(0, 140)}…' : text,
-          paragraphs: paragraphs,
-          place: place.isEmpty ? 'Southeast Asia' : place,
-          motif: motif,
-          seed: seed,
-          readMinutes: math.max(1, (words / 200).ceil()),
-        ),
+      store.write(
+        kind: current,
+        title: isStory() && title.isNotEmpty ? title : null,
+        paragraphs: _paragraphs(f[2].text),
+        place: place.isEmpty
+            ? (isStory() ? 'Southeast Asia' : 'On the road')
+            : place,
+        photos: isStory() ? storyPhotos : [?notePhoto],
+        share: shared,
+        from: from,
       );
-      _posted(context, 'Your story is live.');
+      _posted(
+        context,
+        shared
+            ? (isStory() ? 'Your story is live.' : 'Posted to Moments.')
+            : 'Saved to your journal as a private draft.',
+        shared: shared,
+      );
     },
   );
+}
+
+/// Story or Note, for a journal entry.
+class _KindToggle extends StatelessWidget {
+  const _KindToggle({required this.value, required this.onChanged});
+
+  final EntryKind value;
+  final ValueChanged<EntryKind> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget option(EntryKind kind, String hint) {
+      final on = kind == value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () {
+            if (on) return;
+            HapticFeedback.selectionClick();
+            onChanged(kind);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: on ? AppColors.ink : AppColors.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: on ? AppColors.ink : AppColors.line),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  kind.icon,
+                  size: 18,
+                  color: on ? Colors.white : AppColors.ink,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        kind.label,
+                        style: OdysseyType.sans(
+                          14,
+                          color: on ? Colors.white : AppColors.ink,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        hint,
+                        style: OdysseyType.sans(
+                          11,
+                          color: on ? Colors.white70 : AppColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        option(EntryKind.story, 'Title + photos'),
+        const SizedBox(width: 8),
+        option(EntryKind.note, 'Text, one photo'),
+      ],
+    );
+  }
 }
 
 Future<void> showInviteComposer(BuildContext context, {String? eventId}) {
@@ -388,7 +600,7 @@ Future<void> showInviteComposer(BuildContext context, {String? eventId}) {
                   child: SizedBox(
                     width: 44,
                     height: 44,
-                    child: Scene(e.motif, e.seed),
+                    child: PhotoImage(e.photo, width: 44),
                   ),
                 ),
                 const SizedBox(width: 12),

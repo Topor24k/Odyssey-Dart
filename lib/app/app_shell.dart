@@ -3,21 +3,23 @@ import 'package:flutter/services.dart';
 
 import '../data/app_store.dart';
 import '../theme/odyssey_theme.dart';
-import '../widgets/kit.dart';
-import 'community/community_screen.dart';
+import '../widgets/motion.dart';
 import 'compose_sheet.dart';
 import 'events/events_screen.dart';
 import 'home/home_screen.dart';
+import 'journal/journal_screen.dart';
 import 'map/map_screen.dart';
 import 'schedule/schedule_screen.dart';
 
-/// Space to leave at the bottom of a tab so content clears the floating
-/// navigation bar.
-double navClearance(BuildContext context) =>
-    104 + MediaQuery.paddingOf(context).bottom;
+const _barHeight = 64.0;
 
-/// The signed-in app: Home, Schedule, Map, Community and Events behind a
-/// floating pill navigation bar, with a create button beside it.
+/// Space to leave at the bottom of a tab so content clears the navigation
+/// bar and the create button.
+double navClearance(BuildContext context) =>
+    _barHeight + 40 + MediaQuery.paddingOf(context).bottom;
+
+/// The signed-in app: Home, Schedule, Map, Journal and Events behind a
+/// labelled navigation bar, with a create button floating above it.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -30,18 +32,19 @@ class _AppShellState extends State<AppShell>
   static const _tabs = [
     ('Home', Icons.home_outlined, Icons.home_rounded),
     ('Schedule', Icons.calendar_today_outlined, Icons.calendar_today_rounded),
-    ('Map', Icons.map_outlined, Icons.map_rounded),
-    ('Community', Icons.people_outline_rounded, Icons.people_rounded),
-    ('Events', Icons.event_note_outlined, Icons.event_note_rounded),
+    ('Map', Icons.place_outlined, Icons.place_rounded),
+    ('Journal', Icons.menu_book_outlined, Icons.menu_book_rounded),
+    ('Events', Icons.festival_outlined, Icons.festival_rounded),
   ];
 
   final _store = AppStore.instance;
-  late final AnimationController _fade = AnimationController(
+  late final AnimationController _switch = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 260),
+    duration: const Duration(milliseconds: 320),
     value: 1,
   );
   late int _index = _store.tab.value;
+  bool _creating = false;
 
   @override
   void initState() {
@@ -52,60 +55,75 @@ class _AppShellState extends State<AppShell>
   void _onTab() {
     if (_store.tab.value == _index) return;
     setState(() => _index = _store.tab.value);
-    _fade.forward(from: 0);
+    _switch.forward(from: 0);
+  }
+
+  Future<void> _create() async {
+    HapticFeedback.lightImpact();
+    setState(() => _creating = true);
+    await showCreateSheet(context);
+    if (mounted) setState(() => _creating = false);
   }
 
   @override
   void dispose() {
     _store.tab.removeListener(_onTab);
-    _fade.dispose();
+    _switch.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final curve = CurvedAnimation(parent: _switch, curve: Curves.easeOutCubic);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
         statusBarColor: Colors.transparent,
-        systemNavigationBarColor: AppColors.canvas,
+        systemNavigationBarColor: AppColors.card,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
         body: Stack(
           children: [
-            FadeTransition(
-              opacity: CurvedAnimation(parent: _fade, curve: Curves.easeOut),
+            AnimatedBuilder(
+              animation: curve,
+              builder: (context, child) => Opacity(
+                opacity: curve.value,
+                child: Transform.translate(
+                  offset: Offset(0, (1 - curve.value) * 12),
+                  child: child,
+                ),
+              ),
               child: IndexedStack(
                 index: _index,
                 children: const [
                   HomeScreen(),
                   ScheduleScreen(),
                   MapScreen(),
-                  CommunityScreen(),
+                  JournalScreen(),
                   EventsScreen(),
                 ],
               ),
             ),
             Positioned(
-              left: 16,
-              right: 16,
-              bottom: 14 + MediaQuery.paddingOf(context).bottom,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _NavPill(
-                      tabs: _tabs,
-                      index: _index,
-                      onSelect: (i) {
-                        HapticFeedback.selectionClick();
-                        _store.tab.value = i;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  _CreateButton(onTap: () => showCreateSheet(context)),
-                ],
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _NavBar(
+                tabs: _tabs,
+                index: _index,
+                bottomInset: bottom,
+                onSelect: (i) {
+                  if (i == _index) return;
+                  HapticFeedback.selectionClick();
+                  _store.tab.value = i;
+                },
               ),
+            ),
+            Positioned(
+              right: 18,
+              bottom: _barHeight + bottom + 14,
+              child: _CreateButton(open: _creating, onTap: _create),
             ),
           ],
         ),
@@ -114,66 +132,50 @@ class _AppShellState extends State<AppShell>
   }
 }
 
-class _NavPill extends StatelessWidget {
-  const _NavPill({
+class _NavBar extends StatelessWidget {
+  const _NavBar({
     required this.tabs,
     required this.index,
+    required this.bottomInset,
     required this.onSelect,
   });
 
   final List<(String, IconData, IconData)> tabs;
   final int index;
+  final double bottomInset;
   final ValueChanged<int> onSelect;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 62,
-      decoration: BoxDecoration(
-        color: AppColors.card.withValues(alpha: 0.97),
-        borderRadius: BorderRadius.circular(31),
-        border: Border.all(color: AppColors.line),
-        boxShadow: const [
+      height: _barHeight + bottomInset,
+      padding: EdgeInsets.only(bottom: bottomInset),
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        border: Border(top: BorderSide(color: AppColors.line)),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 24,
-            offset: Offset(0, 8),
+            color: Color(0x0D1D3C37),
+            blurRadius: 16,
+            offset: Offset(0, -4),
           ),
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           for (var i = 0; i < tabs.length; i++)
-            Semantics(
-              label: tabs[i].$1,
-              selected: i == index,
-              button: true,
-              child: Tooltip(
-                message: tabs[i].$1,
+            Expanded(
+              child: Semantics(
+                label: tabs[i].$1,
+                selected: i == index,
+                button: true,
                 child: InkResponse(
                   onTap: () => onSelect(i),
-                  radius: 28,
-                  child: SizedBox(
-                    width: 48,
-                    height: 62,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          i == index ? tabs[i].$3 : tabs[i].$2,
-                          size: 23,
-                          color: i == index ? AppColors.ink : AppColors.muted,
-                        ),
-                        const SizedBox(height: 5),
-                        AnimatedScale(
-                          scale: i == index ? 1 : 0,
-                          duration: const Duration(milliseconds: 240),
-                          curve: Curves.easeOutBack,
-                          child: const Diamond(size: 5),
-                        ),
-                      ],
-                    ),
+                  radius: 32,
+                  child: _NavItem(
+                    label: tabs[i].$1,
+                    icon: i == index ? tabs[i].$3 : tabs[i].$2,
+                    active: i == index,
                   ),
                 ),
               ),
@@ -184,47 +186,87 @@ class _NavPill extends StatelessWidget {
   }
 }
 
-class _CreateButton extends StatelessWidget {
-  const _CreateButton({required this.onTap});
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.label,
+    required this.icon,
+    required this.active,
+  });
 
+  final String label;
+  final IconData icon;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? AppColors.ink : AppColors.muted;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedSlide(
+          offset: Offset(0, active ? -0.08 : 0),
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutBack,
+          child: AnimatedScale(
+            scale: active ? 1.12 : 1,
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutBack,
+            child: Icon(icon, size: 23, color: color),
+          ),
+        ),
+        const SizedBox(height: 4),
+        AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 200),
+          style: OdysseyType.sans(
+            10.5,
+            color: color,
+            weight: active ? FontWeight.w600 : FontWeight.w400,
+          ),
+          child: Text(label, maxLines: 1, overflow: TextOverflow.fade),
+        ),
+      ],
+    );
+  }
+}
+
+class _CreateButton extends StatelessWidget {
+  const _CreateButton({required this.open, required this.onTap});
+
+  final bool open;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
       message: 'Create',
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x33000000),
-              blurRadius: 18,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Material(
-          color: AppColors.ink,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: () {
-              HapticFeedback.lightImpact();
-              onTap();
-            },
-            // A fine brass ring inside the disc, like a compass bezel.
-            child: Container(
-              width: 62,
-              height: 62,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.brassLight.withValues(alpha: 0.55),
-                  width: 1,
+      child: Press(
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x401D3C37),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Material(
+            color: AppColors.ink,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onTap,
+              child: SizedBox(
+                width: 58,
+                height: 58,
+                child: AnimatedRotation(
+                  turns: open ? 0.125 : 0,
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutBack,
+                  child: const Icon(Icons.add, size: 28, color: Colors.white),
                 ),
               ),
-              child: const Icon(Icons.add, size: 28, color: Colors.white),
             ),
           ),
         ),

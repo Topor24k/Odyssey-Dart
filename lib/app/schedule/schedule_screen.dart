@@ -6,11 +6,19 @@ import '../../data/models.dart';
 import '../../data/sample.dart';
 import '../../theme/odyssey_theme.dart';
 import '../../widgets/kit.dart';
+import '../../widgets/motion.dart';
+import '../../widgets/photo.dart';
 import '../app_shell.dart';
+import '../compose_sheet.dart';
 import '../routes.dart';
 
-/// Your days: a week strip and a timeline of your own travel plans and the
-/// events you've joined.
+/// Your days as a travel journal: your own plans and the events you've
+/// joined, day by day down a timeline — the days ahead, or the ones behind.
+///
+/// A plan stays a plan until you've been; then you can write it up as a
+/// journal entry. Taking a plan off the schedule never deletes what you
+/// wrote. Taking off an event still to come means leaving it; one that's
+/// over stays in your joined events.
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
 
@@ -19,51 +27,13 @@ class ScheduleScreen extends StatefulWidget {
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
-  static const _origin = 500;
+  static const _horizonDays = 30;
+  static const _lookBackDays = 90;
 
   final _store = AppStore.instance;
-  final _weeks = PageController(initialPage: _origin);
-  DateTime _selected = Sample.today;
   int _filter = 0;
 
-  DateTime get _thisWeek =>
-      Sample.today.subtract(Duration(days: Sample.today.weekday - 1));
-
-  DateTime _weekStart(int page) =>
-      _thisWeek.add(Duration(days: (page - _origin) * 7));
-
-  int _pageFor(DateTime day) =>
-      _origin +
-      (DateUtils.dateOnly(day).difference(_thisWeek).inDays / 7).floor();
-
-  @override
-  void dispose() {
-    _weeks.dispose();
-    super.dispose();
-  }
-
-  void _select(DateTime day) {
-    HapticFeedback.selectionClick();
-    setState(() => _selected = DateUtils.dateOnly(day));
-    final page = _pageFor(day);
-    if (_weeks.hasClients && _weeks.page?.round() != page) {
-      _weeks.animateToPage(
-        page,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOutCubic,
-      );
-    }
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selected,
-      firstDate: Sample.today.subtract(const Duration(days: 365)),
-      lastDate: Sample.today.add(const Duration(days: 365)),
-    );
-    if (picked != null) _select(picked);
-  }
+  bool get _past => _filter == 3;
 
   bool _passes(PlanItem item) => switch (_filter) {
     1 => item.eventId == null,
@@ -76,177 +46,106 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     return ListenableBuilder(
       listenable: _store,
       builder: (context, _) {
-        final items = _store.itemsOn(_selected).where(_passes).toList();
         final now = DateTime.now();
-        final focus = DateUtils.isSameDay(_selected, now)
-            ? items.where((i) => i.start.add(i.length).isAfter(now)).firstOrNull
-            : null;
+        final days = <(DateTime, List<PlanItem>)>[];
+        if (_past) {
+          for (var d = 1; d <= _lookBackDays; d++) {
+            final day = Sample.today.subtract(Duration(days: d));
+            final items = _store.itemsOn(day);
+            if (items.isNotEmpty) days.add((day, items));
+          }
+        } else {
+          for (var d = 0; d <= _horizonDays; d++) {
+            final day = Sample.today.add(Duration(days: d));
+            final items = _store.itemsOn(day).where(_passes).toList();
+            if (items.isNotEmpty) days.add((day, items));
+          }
+        }
+        final upNext = _past
+            ? null
+            : days
+                  .expand((g) => g.$2)
+                  .where((i) => i.end.isAfter(now))
+                  .firstOrNull;
 
-        return Stack(
-          children: [
-            const Positioned(
-              top: 0,
-              right: -60,
-              width: 280,
-              height: 300,
-              child: ContourPatch(seed: 5, opacity: 0.07),
-            ),
-            CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ScreenHeader(
-                            title: 'Schedule',
-                            subtitle: 'Your route, day by day.',
-                            trailing: RoundIconButton(
-                              icon: Icons.calendar_month_outlined,
-                              tooltip: 'Pick a date',
-                              onTap: _pickDate,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              InkWell(
-                                onTap: _pickDate,
-                                borderRadius: BorderRadius.circular(8),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 4,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        '${monthName(_selected.month)} '
-                                        '${_selected.year}',
-                                        style: OdysseyType.display(
-                                          23,
-                                          color: AppColors.ink,
-                                          weight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      const Icon(
-                                        Icons.keyboard_arrow_down_rounded,
-                                        color: AppColors.ink,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const Spacer(),
-                              FieldTag(
-                                '${items.length} '
-                                '${items.length == 1 ? 'entry' : 'entries'}',
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            height: 80,
-                            child: PageView.builder(
-                              controller: _weeks,
-                              onPageChanged: (page) {
-                                final start = _weekStart(page);
-                                if (_selected.isBefore(start) ||
-                                    !_selected.isBefore(
-                                      start.add(const Duration(days: 7)),
-                                    )) {
-                                  setState(
-                                    () => _selected = start.add(
-                                      Duration(days: _selected.weekday - 1),
-                                    ),
-                                  );
-                                }
-                              },
-                              itemBuilder: (context, page) {
-                                final start = _weekStart(page);
-                                return Row(
-                                  children: [
-                                    for (var d = 0; d < 7; d++)
-                                      Expanded(
-                                        child: _DayCell(
-                                          day: start.add(Duration(days: d)),
-                                          selected: DateUtils.isSameDay(
-                                            start.add(Duration(days: d)),
-                                            _selected,
-                                          ),
-                                          busy: _store.hasItemsOn(
-                                            start.add(Duration(days: d)),
-                                          ),
-                                          onTap: _select,
-                                        ),
-                                      ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          const Divider(),
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Segmented(
-                                  options: const ['All', 'My plans', 'Events'],
-                                  selected: _filter,
-                                  onChanged: (i) => setState(() => _filter = i),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              RoundIconButton(
-                                icon: Icons.add,
-                                tooltip: 'Add a plan',
-                                size: 40,
-                                onTap: () => _showAddPlan(context, _selected),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '${relativeDay(_selected)} · ${dayLabel(_selected)}',
-                            style: OdysseyType.sans(
-                              13,
-                              color: AppColors.muted,
-                              weight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                        ],
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ScreenHeader(
+                        title: 'Schedule',
+                        subtitle: _past
+                            ? 'Where you\'ve been'
+                            : 'Your days ahead',
+                        trailing: RoundIconButton(
+                          icon: Icons.add,
+                          tooltip: 'Add a plan',
+                          onTap: () => _showAddPlan(context),
+                        ),
                       ),
+                      const SizedBox(height: 14),
+                      Segmented(
+                        options: const ['All', 'Plans', 'Events', 'Past'],
+                        selected: _filter,
+                        onChanged: (i) => setState(() => _filter = i),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (days.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 40, 20, 0),
+                  child: Column(
+                    children: [
+                      Musing(
+                        _past
+                            ? 'Nothing behind you yet.\nGo somewhere.'
+                            : 'Nothing planned yet.\nWander a little.',
+                      ),
+                      const SizedBox(height: 18),
+                      OutlinedButton.icon(
+                        onPressed: () => _showAddPlan(context),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Add a plan'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.ink,
+                          side: const BorderSide(color: AppColors.line),
+                          backgroundColor: AppColors.card,
+                          shape: const StadiumBorder(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList.builder(
+                  itemCount: days.length,
+                  itemBuilder: (context, i) => Reveal(
+                    key: ValueKey('${days[i].$1}-$_filter'),
+                    index: i,
+                    child: _DayGroup(
+                      day: days[i].$1,
+                      items: days[i].$2,
+                      upNext: upNext,
+                      last: i == days.length - 1,
                     ),
                   ),
                 ),
-                if (items.isEmpty)
-                  SliverToBoxAdapter(
-                    child: _EmptyDay(
-                      onAdd: () => _showAddPlan(context, _selected),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverList.separated(
-                      itemCount: items.length,
-                      itemBuilder: (context, i) => _TimelineRow(
-                        item: items[i],
-                        focused: items[i] == focus,
-                      ),
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    ),
-                  ),
-                SliverToBoxAdapter(
-                  child: SizedBox(height: navClearance(context) + 12),
-                ),
-              ],
-            ),
+              ),
+            SliverToBoxAdapter(child: SizedBox(height: navClearance(context))),
           ],
         );
       },
@@ -254,65 +153,300 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 }
 
-class _DayCell extends StatelessWidget {
-  const _DayCell({
+/// One day on the timeline: a dated dot, then its entries.
+class _DayGroup extends StatelessWidget {
+  const _DayGroup({
     required this.day,
-    required this.selected,
-    required this.busy,
-    required this.onTap,
+    required this.items,
+    required this.upNext,
+    required this.last,
   });
 
   final DateTime day;
-  final bool selected;
-  final bool busy;
-  final ValueChanged<DateTime> onTap;
+  final List<PlanItem> items;
+  final PlanItem? upNext;
+  final bool last;
 
   @override
   Widget build(BuildContext context) {
-    final today = DateUtils.isSameDay(day, DateTime.now());
-    final fg = selected ? Colors.white : AppColors.ink;
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: dayLabel(day),
-      child: GestureDetector(
-        onTap: () => onTap(day),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          decoration: BoxDecoration(
-            color: selected
-                ? AppColors.ink
-                : (today ? AppColors.card : Colors.transparent),
-            borderRadius: BorderRadius.circular(14),
-            border: today && !selected
-                ? Border.all(color: AppColors.line)
-                : null,
+    return Column(
+      children: [
+        _Rail(
+          dot: true,
+          lineBelow: true,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Text(
+                  '${weekdayShort(day).toUpperCase()} · ${stampLabel(day)}',
+                  style: OdysseyType.caps(10.5, color: AppColors.ink),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  relativeDay(day),
+                  style: OdysseyType.display(
+                    15,
+                    italic: true,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+        ),
+        for (var i = 0; i < items.length; i++)
+          _Rail(
+            lineBelow: !(last && i == items.length - 1),
+            child: _Entry(item: items[i], upNext: items[i] == upNext),
+          ),
+      ],
+    );
+  }
+}
+
+/// The timeline rail beside an entry: a hairline, with a dot for days.
+class _Rail extends StatelessWidget {
+  const _Rail({required this.child, this.dot = false, this.lineBelow = true});
+
+  final Widget child;
+  final bool dot;
+  final bool lineBelow;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 22,
+            child: Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                if (lineBelow)
+                  Positioned(
+                    top: dot ? 8 : 0,
+                    bottom: 0,
+                    child: Container(width: 1, color: AppColors.line),
+                  ),
+                if (dot)
+                  Positioned(
+                    top: 2,
+                    child: Container(
+                      width: 11,
+                      height: 11,
+                      decoration: BoxDecoration(
+                        color: AppColors.canvas,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.ink, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+}
+
+class _Entry extends StatelessWidget {
+  const _Entry({required this.item, required this.upNext});
+
+  final PlanItem item;
+  final bool upNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = AppStore.instance;
+    final people = [for (final id in item.peopleIds) store.person(id)];
+    final event = item.eventId == null ? null : store.event(item.eventId!);
+    final photo = event?.photo ?? item.photo;
+    final written = item.journalId == null
+        ? null
+        : store.entry(item.journalId!);
+    final attended = event != null && store.attended(event);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: AppCard(
+        color: upNext ? AppColors.sage : AppColors.card,
+        padding: const EdgeInsets.fromLTRB(14, 8, 6, 14),
+        // An event opens in full; a plan opens its details and actions.
+        onTap: event != null
+            ? () => openEvent(context, event)
+            : () => _showPlan(context, item),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '${clockLabel(item.start)} · ${durationLabel(item.length)}'
+                      .toUpperCase(),
+                  style: OdysseyType.caps(9.5),
+                ),
+                const Spacer(),
+                if (upNext)
+                  const StatusPill(
+                    'Up next',
+                    background: AppColors.card,
+                    foreground: AppColors.sageInk,
+                  )
+                else if (attended)
+                  const StatusPill(
+                    'Attended',
+                    icon: Icons.verified_outlined,
+                    background: AppColors.sage,
+                    foreground: AppColors.sageInk,
+                  )
+                else if (event != null)
+                  StatusPill(
+                    event.kind.label,
+                    icon: event.kind.icon,
+                    background: AppColors.tile,
+                  )
+                else if (written != null)
+                  const StatusPill(
+                    'In journal',
+                    icon: Icons.menu_book_outlined,
+                    background: AppColors.tile,
+                  ),
+                IconButton(
+                  onPressed: () => event != null
+                      ? _showEventActions(context, item, event)
+                      : _showPlan(context, item),
+                  icon: const Icon(Icons.more_horiz, size: 20),
+                  color: AppColors.muted,
+                  tooltip: 'More',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    style: OdysseyType.display(
+                      20,
+                      color: AppColors.ink,
+                      weight: FontWeight.w500,
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    item.place,
+                    style: OdysseyType.sans(13, color: AppColors.body),
+                  ),
+                  if (photo != null) ...[
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        height: 120,
+                        width: double.infinity,
+                        child: PhotoImage(photo),
+                      ),
+                    ),
+                  ],
+                  if (item.note != null && upNext) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      item.note!,
+                      style: OdysseyType.display(
+                        16,
+                        italic: true,
+                        color: AppColors.body,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                  if (people.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        AvatarStack(people, size: 24),
+                        const SizedBox(width: 8),
+                        Text(
+                          people.length == 1
+                              ? 'With ${people.first.firstName}'
+                              : 'With ${people.first.firstName} '
+                                    '+${people.length - 1}',
+                          style: OdysseyType.sans(12, color: AppColors.muted),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (written != null) ...[
+                    const SizedBox(height: 12),
+                    _InlineLink(
+                      icon: Icons.menu_book_outlined,
+                      label: 'Read what you wrote',
+                      onTap: () => openEntry(context, written),
+                    ),
+                  ] else if (store.canWriteUp(item)) ...[
+                    const SizedBox(height: 12),
+                    _InlineLink(
+                      icon: Icons.edit_outlined,
+                      label: 'You\'ve been — write about it',
+                      strong: true,
+                      onTap: () => _writeUp(context, item),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A small pill link inside a schedule card.
+class _InlineLink extends StatelessWidget {
+  const _InlineLink({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.strong = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = strong ? Colors.white : AppColors.sageInk;
+    return Material(
+      color: strong ? AppColors.ink : AppColors.sage,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              Icon(icon, size: 15, color: fg),
+              const SizedBox(width: 6),
               Text(
-                weekdayShort(day),
+                label,
                 style: OdysseyType.sans(
                   12.5,
-                  color: selected ? Colors.white70 : AppColors.muted,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '${day.day}',
-                style: OdysseyType.sans(17, color: fg, weight: FontWeight.w600),
-              ),
-              const SizedBox(height: 5),
-              Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: busy
-                      ? (selected ? AppColors.brassLight : AppColors.brass)
-                      : Colors.transparent,
+                  color: fg,
+                  weight: FontWeight.w600,
                 ),
               ),
             ],
@@ -323,169 +457,190 @@ class _DayCell extends StatelessWidget {
   }
 }
 
-class _TimelineRow extends StatelessWidget {
-  const _TimelineRow({required this.item, required this.focused});
+/// Turns a plan you've been on into a journal entry: a story or a note,
+/// shared or kept as a private draft.
+void _writeUp(BuildContext context, PlanItem item) {
+  showWriteSheet(context, from: item, chooseKind: true, share: false);
+}
 
-  final PlanItem item;
-
-  /// The item happening now or next, drawn in sage.
-  final bool focused;
-
-  @override
-  Widget build(BuildContext context) {
-    final store = AppStore.instance;
-    final people = [for (final id in item.peopleIds) store.person(id)];
-    final meta = item.eventId == null
-        ? '${item.kind.label} · ${durationLabel(item.length)}'
-        : 'Event · ${durationLabel(item.length)}';
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 72,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 18),
-            child: Text(
-              clockLabel(item.start),
-              style: OdysseyType.mono(
-                12.5,
-                color: AppColors.body,
-                letterSpacing: 0.4,
-              ),
-            ),
+/// Asks before taking something off the schedule. True if confirmed.
+Future<bool> _confirm(
+  BuildContext context, {
+  required String title,
+  required String body,
+  required String action,
+}) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (dialog) => AlertDialog(
+      backgroundColor: AppColors.canvas,
+      title: Text(
+        title,
+        style: OdysseyType.display(
+          24,
+          color: AppColors.ink,
+          weight: FontWeight.w500,
+        ),
+      ),
+      content: Text(
+        body,
+        style: OdysseyType.sans(14, color: AppColors.body, height: 1.45),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialog).pop(false),
+          child: Text(
+            'Cancel',
+            style: OdysseyType.sans(14, color: AppColors.ink),
           ),
         ),
-        Expanded(
-          child: AppCard(
-            color: focused ? AppColors.sage : AppColors.card,
-            onTap: () => _showDetails(context, item),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    IconTile(
-                      item.kind.icon,
-                      size: 38,
-                      background: focused
-                          ? Colors.white.withValues(alpha: 0.55)
-                          : AppColors.tile,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              if (item.eventId != null) ...[
-                                Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.sageInk,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 7),
-                              ],
-                              Expanded(
-                                child: Text(
-                                  item.title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: OdysseyType.sans(
-                                    14.5,
-                                    color: AppColors.ink,
-                                    weight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            meta,
-                            style: OdysseyType.sans(12, color: AppColors.muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (people.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      AvatarStack(people, size: 24),
-                    ],
-                    const Icon(
-                      Icons.chevron_right,
-                      color: AppColors.muted,
-                      size: 20,
-                    ),
-                  ],
-                ),
-                if (item.note != null && focused) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      item.note!,
-                      style: OdysseyType.sans(
-                        13,
-                        color: AppColors.body,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+        TextButton(
+          onPressed: () => Navigator.of(dialog).pop(true),
+          child: Text(
+            action,
+            style: OdysseyType.sans(
+              14,
+              color: AppColors.alert,
+              weight: FontWeight.w600,
             ),
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
+  return ok ?? false;
 }
 
-class _EmptyDay extends StatelessWidget {
-  const _EmptyDay({required this.onAdd});
+void _toast(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+}
 
-  final VoidCallback onAdd;
+/// Takes a plan off the schedule, after asking. What you wrote stays.
+Future<void> _removePlan(BuildContext context, PlanItem item) async {
+  final written = item.journalId != null;
+  final ok = await _confirm(
+    context,
+    title: 'Remove from schedule?',
+    body: written
+        ? '“${item.title}” comes off your schedule. What you wrote about it '
+              'stays in your journal — delete it from the Journal tab if you '
+              'want it gone.'
+        : '“${item.title}” comes off your schedule.',
+    action: 'Remove',
+  );
+  if (!ok || !context.mounted) return;
+  HapticFeedback.mediumImpact();
+  AppStore.instance.removePlan(item.id);
+  _toast(context, 'Removed from your schedule.');
+}
+
+/// Takes an event off the schedule, after asking: leaving it if it's still
+/// to come, or just tidying the calendar if it's over.
+Future<void> _removeEvent(BuildContext context, TripEvent event) async {
+  final store = AppStore.instance;
+  final ended = store.hasEnded(event);
+  final ok = await _confirm(
+    context,
+    title: ended ? 'Remove from calendar?' : 'Leave this event?',
+    body: ended
+        ? 'You attended “${event.title}”. It comes off your calendar but '
+              'stays in your joined events.'
+        : 'Taking “${event.title}” off your schedule means leaving it, and '
+              'your place goes to someone else.',
+    action: ended ? 'Remove' : 'Leave',
+  );
+  if (!ok || !context.mounted) return;
+  HapticFeedback.mediumImpact();
+  final left = store.removeEventFromSchedule(event.id);
+  _toast(
+    context,
+    left
+        ? 'You left ${event.title}.'
+        : 'Off your calendar — still in your joined events.',
+  );
+}
+
+void _showEventActions(BuildContext context, PlanItem item, TripEvent event) {
+  final ended = AppStore.instance.hasEnded(event);
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (sheet) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              event.title,
+              style: OdysseyType.display(
+                24,
+                color: AppColors.ink,
+                weight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SheetAction(
+              icon: Icons.open_in_new,
+              label: 'View event',
+              onTap: () {
+                Navigator.of(sheet).pop();
+                openEvent(context, event);
+              },
+            ),
+            _SheetAction(
+              icon: ended ? Icons.event_busy_outlined : Icons.logout,
+              label: ended ? 'Remove from calendar' : 'Leave event',
+              danger: true,
+              onTap: () {
+                Navigator.of(sheet).pop();
+                _removeEvent(context, event);
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _SheetAction extends StatelessWidget {
+  const _SheetAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
-      child: Column(
-        children: [
-          const Musing('A free day.\nWander a little.', size: 22),
-          const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add a plan'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.ink,
-              side: const BorderSide(color: AppColors.line),
-              backgroundColor: AppColors.card,
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              textStyle: OdysseyType.sans(14, weight: FontWeight.w600),
-            ),
-          ),
-        ],
+    final color = danger ? AppColors.alert : AppColors.ink;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: color),
+      title: Text(
+        label,
+        style: OdysseyType.sans(15, color: color, weight: FontWeight.w500),
       ),
+      onTap: onTap,
     );
   }
 }
 
-void _showDetails(BuildContext context, PlanItem item) {
+/// A plan's details, and what you can do with it: write it up once you've
+/// been, read what you wrote, or take it off the schedule.
+void _showPlan(BuildContext context, PlanItem item) {
   final store = AppStore.instance;
   final people = [for (final id in item.peopleIds) store.person(id)];
-  final end = item.start.add(item.length);
+  final written = item.journalId == null ? null : store.entry(item.journalId!);
+  final canWrite = store.canWriteUp(item);
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -496,29 +651,26 @@ void _showDetails(BuildContext context, PlanItem item) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                IconTile(item.kind.icon, size: 44),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: OdysseyType.sans(
-                      19,
-                      color: AppColors.ink,
-                      weight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+            Text(
+              '${weekdayShort(item.start)} · ${stampLabel(item.start)} · '
+                      '${relativeDay(item.start)}'
+                  .toUpperCase(),
+              style: OdysseyType.caps(10),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              item.title,
+              style: OdysseyType.display(
+                26,
+                color: AppColors.ink,
+                weight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: 16),
             _DetailLine(
               Icons.schedule,
-              item.length.inDays >= 1
-                  ? '${dayLabel(item.start)} · ${durationLabel(item.length)}'
-                  : '${timeLabel(item.start)} – ${timeLabel(end)} · '
-                        '${durationLabel(item.length)}',
+              '${timeLabel(item.start)} – ${timeLabel(item.end)} · '
+              '${durationLabel(item.length)}',
             ),
             _DetailLine(Icons.place_outlined, item.place),
             if (item.note != null) _DetailLine(Icons.notes, item.note!),
@@ -537,36 +689,124 @@ void _showDetails(BuildContext context, PlanItem item) {
                 ],
               ),
             ],
-            if (item.eventId != null) ...[
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.ink,
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () {
-                    Navigator.of(sheet).pop();
-                    openEvent(context, store.event(item.eventId!));
-                  },
-                  child: Text(
-                    'View event',
-                    style: OdysseyType.sans(
-                      14,
-                      color: Colors.white,
-                      weight: FontWeight.w600,
+            const SizedBox(height: 18),
+            if (written != null)
+              _WideButton(
+                icon: Icons.menu_book_outlined,
+                label: 'Open journal entry',
+                onTap: () {
+                  Navigator.of(sheet).pop();
+                  openEntry(context, written);
+                },
+              )
+            else if (canWrite)
+              _WideButton(
+                icon: Icons.edit_outlined,
+                label: 'Turn into a journal entry',
+                dark: true,
+                onTap: () {
+                  Navigator.of(sheet).pop();
+                  _writeUp(context, item);
+                },
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.tile,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.lock_clock_outlined,
+                      size: 18,
+                      color: AppColors.muted,
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Just a plan for now. Once you\'ve been, you can turn '
+                        'it into a journal entry with photos.',
+                        style: OdysseyType.sans(
+                          12.5,
+                          color: AppColors.body,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            const SizedBox(height: 6),
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.of(sheet).pop();
+                  _removePlan(context, item);
+                },
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('Remove from schedule'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.alert),
+              ),
+            ),
           ],
         ),
       ),
     ),
   );
+}
+
+class _WideButton extends StatelessWidget {
+  const _WideButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.dark = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = dark ? Colors.white : AppColors.ink;
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: dark ? AppColors.ink : AppColors.card,
+        shape: StadiumBorder(
+          side: dark
+              ? BorderSide.none
+              : const BorderSide(color: AppColors.line),
+        ),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: fg),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: OdysseyType.sans(
+                    14.5,
+                    color: fg,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _DetailLine extends StatelessWidget {
@@ -596,18 +836,16 @@ class _DetailLine extends StatelessWidget {
   }
 }
 
-void _showAddPlan(BuildContext context, DateTime day) {
+void _showAddPlan(BuildContext context) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _AddPlanSheet(day: day),
+    builder: (_) => const _AddPlanSheet(),
   );
 }
 
 class _AddPlanSheet extends StatefulWidget {
-  const _AddPlanSheet({required this.day});
-
-  final DateTime day;
+  const _AddPlanSheet();
 
   @override
   State<_AddPlanSheet> createState() => _AddPlanSheetState();
@@ -616,6 +854,7 @@ class _AddPlanSheet extends StatefulWidget {
 class _AddPlanSheetState extends State<_AddPlanSheet> {
   final _title = TextEditingController();
   final _place = TextEditingController();
+  DateTime _day = Sample.today;
   TimeOfDay _time = const TimeOfDay(hour: 9, minute: 0);
   PlanKind _kind = PlanKind.travel;
 
@@ -633,25 +872,43 @@ class _AddPlanSheetState extends State<_AddPlanSheet> {
         id: store.newId('plan'),
         title: _title.text.trim(),
         kind: _kind,
-        start: widget.day.add(
-          Duration(hours: _time.hour, minutes: _time.minute),
-        ),
+        start: _day.add(Duration(hours: _time.hour, minutes: _time.minute)),
         length: const Duration(hours: 1),
         place: _place.text.trim().isEmpty
             ? 'Somewhere new'
             : _place.text.trim(),
       ),
     );
+    HapticFeedback.mediumImpact();
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
     messenger.showSnackBar(
-      SnackBar(content: Text('Added to ${dayLabel(widget.day)}.')),
+      SnackBar(content: Text('Added to ${dayLabel(_day)}.')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final ready = _title.text.trim().isNotEmpty;
+    Widget picker(IconData icon, String label, VoidCallback onTap) => Expanded(
+      child: AppCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        onTap: onTap,
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.muted),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: OdysseyType.sans(14, color: AppColors.ink),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
@@ -662,11 +919,11 @@ class _AddPlanSheetState extends State<_AddPlanSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Add to ${dayLabel(widget.day)}',
-                style: OdysseyType.sans(
-                  20,
+                'Add a plan',
+                style: OdysseyType.display(
+                  26,
                   color: AppColors.ink,
-                  weight: FontWeight.w700,
+                  weight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 16),
@@ -682,6 +939,32 @@ class _AddPlanSheetState extends State<_AddPlanSheet> {
                 icon: Icons.place_outlined,
                 textCapitalization: TextCapitalization.words,
               ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  picker(
+                    Icons.calendar_today_outlined,
+                    dayLabel(_day),
+                    () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _day,
+                        firstDate: Sample.today,
+                        lastDate: Sample.today.add(const Duration(days: 365)),
+                      );
+                      if (picked != null) setState(() => _day = picked);
+                    },
+                  ),
+                  const SizedBox(width: 10),
+                  picker(Icons.schedule, _time.format(context), () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: _time,
+                    );
+                    if (picked != null) setState(() => _time = picked);
+                  }),
+                ],
+              ),
               const SizedBox(height: 14),
               Wrap(
                 spacing: 8,
@@ -694,7 +977,9 @@ class _AddPlanSheetState extends State<_AddPlanSheet> {
                       label: Text(k.label),
                       avatar: Icon(k.icon, size: 16),
                       selected: k == _kind,
-                      onSelected: (_) => setState(() => _kind = k),
+                      onSelected: (_) {
+                        setState(() => _kind = k);
+                      },
                       showCheckmark: false,
                       selectedColor: AppColors.sage,
                       backgroundColor: AppColors.card,
@@ -702,28 +987,6 @@ class _AddPlanSheetState extends State<_AddPlanSheet> {
                       labelStyle: OdysseyType.sans(13, color: AppColors.ink),
                     ),
                 ],
-              ),
-              const SizedBox(height: 14),
-              AppCard(
-                onTap: () async {
-                  final picked = await showTimePicker(
-                    context: context,
-                    initialTime: _time,
-                  );
-                  if (picked != null) setState(() => _time = picked);
-                },
-                child: Row(
-                  children: [
-                    const Icon(Icons.schedule, color: AppColors.muted),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Starts at ${_time.format(context)}',
-                      style: OdysseyType.sans(14.5, color: AppColors.ink),
-                    ),
-                    const Spacer(),
-                    const Icon(Icons.chevron_right, color: AppColors.muted),
-                  ],
-                ),
               ),
               const SizedBox(height: 18),
               FilledButton(

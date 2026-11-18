@@ -88,7 +88,7 @@ class _SignUpFormState extends State<SignUpForm>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Spacer(flex: 2),
-            const SizedBox(height: 28),
+            const SizedBox(height: 18),
             step(
               const AuthTitle(
                 'Begin your\nodyssey.',

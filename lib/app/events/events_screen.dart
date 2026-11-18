@@ -5,7 +5,8 @@ import '../../data/models.dart';
 import '../../data/sample.dart';
 import '../../theme/odyssey_theme.dart';
 import '../../widgets/kit.dart';
-import '../../widgets/scene.dart';
+import '../../widgets/motion.dart';
+import '../../widgets/photo.dart';
 import '../app_shell.dart';
 import '../routes.dart';
 
@@ -20,28 +21,55 @@ class EventsScreen extends StatefulWidget {
 
 class _EventsScreenState extends State<EventsScreen> {
   final _store = AppStore.instance;
-  int _filter = 0;
 
-  bool _passes(TripEvent e) => switch (_filter) {
-    1 => e.kind == EventKind.gathering,
-    2 => e.kind == EventKind.expedition,
-    _ => true,
-  };
+  int get _filter => _store.eventsFilter.value;
+
+  bool _passes(TripEvent e) =>
+      !_store.hasEnded(e) &&
+      switch (_filter) {
+        1 => e.kind == EventKind.gathering,
+        2 => e.kind == EventKind.expedition,
+        _ => true,
+      };
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _store,
+      listenable: Listenable.merge([_store, _store.eventsFilter]),
       builder: (context, _) {
+        final joinedView = _filter == 3;
         final events = Sample.events.where(_passes).toList()
           ..sort((a, b) => a.start.compareTo(b.start));
-        final featured = events
-            .where((e) => e.kind == EventKind.expedition)
-            .firstOrNull;
+        final featured = joinedView
+            ? null
+            : events.where((e) => e.kind == EventKind.expedition).firstOrNull;
         final rest = [
           for (final e in events)
             if (e != featured) e,
         ];
+        final upcoming = _store.upcomingJoined;
+        final attended = _store.attendedEvents;
+
+        Widget list(List<TripEvent> items) => SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverList.separated(
+            itemCount: items.length,
+            itemBuilder: (context, i) => Reveal(
+              key: ValueKey('${items[i].id}-$_filter'),
+              index: i,
+              child: _EventRow(event: items[i]),
+            ),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+          ),
+        );
+
+        Widget header(String title, String trailing) => SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+            child: SectionHeader(title, trailingText: trailing),
+          ),
+        );
+
         return CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
@@ -58,31 +86,55 @@ class _EventsScreenState extends State<EventsScreen> {
                       ),
                       const SizedBox(height: 18),
                       Segmented(
-                        options: const ['All', 'Gatherings', 'Expeditions'],
+                        options: const [
+                          'All',
+                          'Gatherings',
+                          'Expeditions',
+                          'Joined',
+                        ],
                         selected: _filter,
-                        onChanged: (i) => setState(() => _filter = i),
+                        onChanged: (i) => _store.eventsFilter.value = i,
                       ),
-                      const SizedBox(height: 16),
-                      if (featured != null) _Featured(event: featured),
-                      const SizedBox(height: 24),
-                      SectionHeader(
-                        'Upcoming',
-                        trailingText: '${rest.length} events',
-                      ),
-                      const SizedBox(height: 10),
+                      if (!joinedView) ...[
+                        const SizedBox(height: 16),
+                        if (featured != null) _Featured(event: featured),
+                      ],
                     ],
                   ),
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList.separated(
-                itemCount: rest.length,
-                itemBuilder: (context, i) => _EventRow(event: rest[i]),
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
+            if (joinedView) ...[
+              header('Coming up', '${upcoming.length} joined'),
+              if (upcoming.isEmpty)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(20, 4, 20, 0),
+                    child: Musing('Nothing joined yet.'),
+                  ),
+                )
+              else
+                list(upcoming),
+              header('Attended', '${attended.length} events'),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                  child: Text(
+                    'Events you went to, marked by their hosts. They stay '
+                    'here even if you take them off your calendar.',
+                    style: OdysseyType.sans(
+                      12.5,
+                      color: AppColors.muted,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
               ),
-            ),
+              list(attended),
+            ] else ...[
+              header('Upcoming', '${rest.length} events'),
+              list(rest),
+            ],
             SliverToBoxAdapter(child: SizedBox(height: navClearance(context))),
           ],
         );
@@ -110,13 +162,13 @@ class _Featured extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Scene(event.motif, event.seed),
+            Hero(tag: 'event-${event.id}', child: PhotoImage(event.photo)),
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0x00141D15), Color(0xE6141D15)],
+                  colors: [Color(0x00102421), Color(0xD9102421)],
                   stops: [0.3, 1],
                 ),
               ),
@@ -137,10 +189,11 @@ class _Featured extends StatelessWidget {
                       const Spacer(),
                       Text(
                         event.title,
-                        style: OdysseyType.sans(
-                          22,
+                        style: OdysseyType.display(
+                          28,
                           color: Colors.white,
-                          weight: FontWeight.w700,
+                          weight: FontWeight.w500,
+                          height: 1.05,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -227,7 +280,9 @@ class _EventRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${event.kind.label} · ${relativeDay(event.start)}',
+                  store.hasEnded(event)
+                      ? '${event.kind.label} · Past'
+                      : '${event.kind.label} · ${relativeDay(event.start)}',
                   style: OdysseyType.sans(
                     11.5,
                     color: AppColors.sageInk,
@@ -239,10 +294,10 @@ class _EventRow extends StatelessWidget {
                   event.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: OdysseyType.sans(
-                    15,
+                  style: OdysseyType.display(
+                    19,
                     color: AppColors.ink,
-                    weight: FontWeight.w600,
+                    weight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -258,7 +313,9 @@ class _EventRow extends StatelessWidget {
                     AvatarStack(going, size: 20),
                     const SizedBox(width: 6),
                     Text(
-                      '${store.goingCount(event)}/${event.capacity} going',
+                      store.hasEnded(event)
+                          ? '${store.goingCount(event)} went'
+                          : '${store.goingCount(event)}/${event.capacity} going',
                       style: OdysseyType.sans(11.5, color: AppColors.muted),
                     ),
                   ],

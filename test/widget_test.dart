@@ -1,9 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:odyssey/auth/validators.dart';
 import 'package:odyssey/data/app_store.dart';
+import 'package:odyssey/data/intro_prefs.dart';
 import 'package:odyssey/data/models.dart';
+import 'package:odyssey/data/photo_credits.dart';
 import 'package:odyssey/data/sample.dart';
 import 'package:odyssey/widgets/kit.dart';
+import 'package:odyssey/widgets/photo.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('Email', () {
@@ -69,6 +75,122 @@ void main() {
         Sample.events.map((e) => e.id).toSet().length,
         Sample.events.length,
       );
+      expect(
+        Sample.journal.map((e) => e.id).toSet().length,
+        Sample.journal.length,
+      );
+    });
+
+    test('journal entries point at real posts and pins', () {
+      for (final e in Sample.journal) {
+        expect(e.shared, e.postId != null || e.pinId != null, reason: e.id);
+        if (e.postId != null) {
+          expect(Sample.posts.where((p) => p.id == e.postId), hasLength(1));
+        }
+        if (e.pinId != null) {
+          expect(Sample.mapStories.where((s) => s.id == e.pinId), hasLength(1));
+        }
+      }
+    });
+
+    test('every photo has a file and a credit', () {
+      final used = <Photo>{
+        ...Photos.covers,
+        for (final p in Sample.people) p.cover,
+        for (final p in Sample.posts.whereType<StoryPost>()) ...p.photos,
+        for (final e in Sample.events) e.photo,
+        for (final s in Sample.mapStories) s.photo,
+        for (final p in Sample.plans) ?p.photo,
+        for (final e in Sample.journal) ...e.photos,
+      };
+      final credited = {for (final c in photoCredits) c.photo};
+      for (final photo in used) {
+        expect(
+          File('assets/photos/${photo.name}.jpg').existsSync(),
+          isTrue,
+          reason: photo.name,
+        );
+        expect(credited, contains(photo.name));
+      }
+      for (final name in credited) {
+        expect(File('assets/photos/$name.jpg').existsSync(), isTrue);
+      }
+    });
+  });
+
+  group('Journal', () {
+    final store = AppStore.instance;
+
+    test('a private entry stays out of Moments until you share it', () {
+      final before = store.posts.length;
+      final entry = store.write(
+        kind: EntryKind.story,
+        title: 'Quiet morning',
+        paragraphs: const ['Mist on the river.'],
+        place: 'Pakbeng, Laos',
+        photos: const [Photos.pakbengBoats, Photos.mekongSunset],
+        share: false,
+      );
+      expect(store.journal.first.id, entry.id);
+      expect(store.posts.length, before);
+      expect(store.entry(entry.id)!.shared, isFalse);
+
+      store.shareEntry(entry.id);
+      final shared = store.entry(entry.id)!;
+      expect(shared.shared, isTrue);
+      expect(store.posts.first.id, shared.postId);
+      final post = store.posts.first as StoryPost;
+      expect(post.title, 'Quiet morning');
+      expect(post.photos, hasLength(2));
+    });
+
+    test('a shared note becomes a text post, with or without a photo', () {
+      final entry = store.write(
+        kind: EntryKind.note,
+        paragraphs: const ['Fuel up at Mae Malai.'],
+        place: 'Pai, Thailand',
+      );
+      expect(entry.shared, isTrue);
+      expect((store.posts.first as TextPost).photo, isNull);
+
+      store.write(
+        kind: EntryKind.note,
+        paragraphs: const ['Sunset from the canyon.'],
+        place: 'Pai, Thailand',
+        photos: const [Photos.paiCanyon],
+      );
+      expect((store.posts.first as TextPost).photo, Photos.paiCanyon);
+    });
+
+    test('deleting an entry takes its post off Moments', () {
+      final entry = store.write(
+        kind: EntryKind.note,
+        paragraphs: const ['Delete me.'],
+        place: 'Hà Nội, Vietnam',
+      );
+      expect(store.post(entry.postId!), isNotNull);
+      store.deleteEntry(entry.id);
+      expect(store.entry(entry.id), isNull);
+      expect(store.post(entry.postId!), isNull);
+    });
+
+    test('pinning a story keeps it in the journal too', () {
+      store.pinStory(
+        MapStory(
+          id: 'm-test',
+          authorId: 'me',
+          title: 'Test pin',
+          note: 'Here.',
+          place: 'Hội An, Vietnam',
+          point: store.home,
+          photo: Photos.hoiAnStreet,
+          likes: 0,
+          ago: 'Just now',
+        ),
+      );
+      final pinned = store.journal.firstWhere((e) => e.pinId == 'm-test');
+      expect(pinned.kind, EntryKind.pin);
+      expect(pinned.shared, isTrue);
     });
   });
 
@@ -125,6 +247,71 @@ void main() {
     });
   });
 
+  group('Plans and joined events', () {
+    final store = AppStore.instance;
+
+    test('a plan can be written up only once you have been', () {
+      final past = store.plan('pl-duonglam')!;
+      final ahead = store.plan('pl-pass')!;
+      expect(store.canWriteUp(past), isTrue);
+      expect(store.canWriteUp(ahead), isFalse);
+    });
+
+    test(
+      'writing up a plan links it, and removing the plan keeps the entry',
+      () {
+        final plan = store.plan('pl-duonglam')!;
+        final entry = store.write(
+          kind: EntryKind.story,
+          title: 'Laterite walls',
+          paragraphs: const ['The village is built from the hill itself.'],
+          place: plan.place,
+          photos: const [Photos.vanMieu],
+          share: false,
+          from: plan,
+        );
+        expect(store.plan(plan.id)!.journalId, entry.id);
+        expect(entry.date, plan.start);
+
+        store.removePlan(plan.id);
+        expect(store.plan(plan.id), isNull);
+        expect(store.entry(entry.id), isNotNull);
+      },
+    );
+
+    test('deleting a written-up entry frees the plan to be written again', () {
+      final plan = store.plan('pl-trangan')!;
+      expect(plan.journalId, 'j-trangan');
+      store.deleteEntry('j-trangan');
+      expect(store.plan(plan.id)!.journalId, isNull);
+    });
+
+    test('taking an upcoming event off the schedule leaves it', () {
+      store.toggleJoin('e-angkor');
+      expect(store.isJoined('e-angkor'), isTrue);
+      expect(store.removeEventFromSchedule('e-angkor'), isTrue);
+      expect(store.isJoined('e-angkor'), isFalse);
+    });
+
+    test('a past event leaves the calendar but stays attended', () {
+      final sketch = store.event('e-sketch');
+      expect(store.attended(sketch), isTrue);
+      final day = sketch.start;
+      expect(
+        store.itemsOn(day).where((i) => i.eventId == sketch.id),
+        isNotEmpty,
+      );
+
+      expect(store.removeEventFromSchedule(sketch.id), isFalse);
+      expect(store.itemsOn(day).where((i) => i.eventId == sketch.id), isEmpty);
+      expect(store.attended(sketch), isTrue);
+      expect(store.attendedEvents, contains(sketch));
+
+      store.toggleJoin(sketch.id); // Can't leave something that's over.
+      expect(store.isJoined(sketch.id), isTrue);
+    });
+  });
+
   group('Feed and friends', () {
     final store = AppStore.instance;
 
@@ -148,6 +335,28 @@ void main() {
       expect(store.statusOf('p-lea'), FriendStatus.requested);
       await tester.pump(const Duration(seconds: 2));
       expect(store.statusOf('p-lea'), FriendStatus.friends);
+    });
+  });
+
+  group('Intro tour', () {
+    test('plays after sign up, not on a first log in', () async {
+      SharedPreferences.setMockInitialValues({});
+      expect(await IntroPrefs.shouldShow(afterSignUp: true), isTrue);
+      expect(await IntroPrefs.shouldShow(afterSignUp: false), isFalse);
+    });
+
+    test('comes back on later log ins once seen', () async {
+      SharedPreferences.setMockInitialValues({});
+      await IntroPrefs.markSeen();
+      expect(await IntroPrefs.shouldShow(afterSignUp: false), isTrue);
+    });
+
+    test("stays away after Don't show this again", () async {
+      SharedPreferences.setMockInitialValues({});
+      await IntroPrefs.markSeen();
+      await IntroPrefs.hideForGood();
+      expect(await IntroPrefs.shouldShow(afterSignUp: false), isFalse);
+      expect(await IntroPrefs.shouldShow(afterSignUp: true), isFalse);
     });
   });
 

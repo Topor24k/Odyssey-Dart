@@ -5,12 +5,12 @@ import '../../data/models.dart';
 import '../../data/sample.dart';
 import '../../theme/odyssey_theme.dart';
 import '../../widgets/kit.dart';
-import '../../widgets/scene.dart';
-import '../app_shell.dart';
+import '../../widgets/motion.dart';
+import '../../widgets/photo.dart';
 import '../routes.dart';
 
 /// Find wayfarers to travel with, add them, and see who's already in your
-/// circle.
+/// circle. Opened from the people button on Home.
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
 
@@ -55,102 +55,123 @@ class _CommunityScreenState extends State<CommunityScreen> {
             .toList();
         final searching = _search.text.trim().isNotEmpty;
 
-        return CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ScreenHeader(
-                        title: 'Community',
-                        subtitle: 'Find your people on the road.',
-                        trailing: GestureDetector(
-                          onTap: () => openProfile(context, _store.me),
-                          child: Avatar(_store.me, size: 44),
+        return Scaffold(
+          body: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: RoundIconButton(
+                            icon: Icons.arrow_back,
+                            tooltip: 'Back',
+                            size: 42,
+                            onTap: () => Navigator.of(context).maybePop(),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                      SoftField(
-                        controller: _search,
-                        hint: 'Search by name, place or travel style',
-                        icon: Icons.search,
-                        textCapitalization: TextCapitalization.none,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: 14),
-                      Segmented(
-                        options: ['Discover', 'Friends (${friends.length})'],
-                        selected: _tab,
-                        onChanged: (i) => setState(() => _tab = i),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            if (_tab == 0 && !searching && suggested.isNotEmpty) ...[
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
-                  child: SectionHeader(
-                    'Fellow wayfarers',
-                    trailingText: 'Suggested',
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 236,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: suggested.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 12),
-                    itemBuilder: (context, i) =>
-                        _SuggestionCard(person: suggested[i]),
-                  ),
-                ),
-              ),
-            ],
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-                child: SectionHeader(
-                  searching
-                      ? 'Results'
-                      : (_tab == 0 ? 'All wayfarers' : 'Your friends'),
-                  trailingText: '${listed.length}',
-                ),
-              ),
-            ),
-            if (listed.isEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(30),
-                  child: Center(
-                    child: Musing(
-                      _tab == 1 && !searching
-                          ? 'No companions yet —\nthe road is long, say hello.'
-                          : 'Nobody by that name…\nyet.',
+                        ScreenHeader(
+                          title: 'Community',
+                          subtitle: 'Find your people on the road.',
+                          trailing: GestureDetector(
+                            onTap: () => openProfile(context, _store.me),
+                            child: Avatar(_store.me, size: 44),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        SoftField(
+                          controller: _search,
+                          hint: 'Search by name, place or travel style',
+                          icon: Icons.search,
+                          textCapitalization: TextCapitalization.none,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: 14),
+                        Segmented(
+                          options: ['Discover', 'Friends (${friends.length})'],
+                          selected: _tab,
+                          onChanged: (i) => setState(() => _tab = i),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverList.separated(
-                  itemCount: listed.length,
-                  itemBuilder: (context, i) => _PersonRow(person: listed[i]),
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+              ),
+              if (_tab == 0 && !searching && suggested.isNotEmpty) ...[
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
+                    child: SectionHeader(
+                      'Fellow wayfarers',
+                      trailingText: 'Suggested',
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 236,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: suggested.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (context, i) => Reveal(
+                        index: i,
+                        child: _SuggestionCard(person: suggested[i]),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+                  child: SectionHeader(
+                    searching
+                        ? 'Results'
+                        : (_tab == 0 ? 'All wayfarers' : 'Your friends'),
+                    trailingText: '${listed.length}',
+                  ),
                 ),
               ),
-            SliverToBoxAdapter(child: SizedBox(height: navClearance(context))),
-          ],
+              if (listed.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(30),
+                    child: Center(
+                      child: Musing(
+                        _tab == 1 && !searching
+                            ? 'No companions yet —\nthe road is long, say hello.'
+                            : 'Nobody by that name…\nyet.',
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverList.separated(
+                    itemCount: listed.length,
+                    itemBuilder: (context, i) => Reveal(
+                      key: ValueKey('${listed[i].id}-$_tab'),
+                      index: i,
+                      child: _PersonRow(person: listed[i]),
+                    ),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  ),
+                ),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: MediaQuery.paddingOf(context).bottom + 32,
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -176,9 +197,7 @@ class _SuggestionCard extends StatelessWidget {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Positioned.fill(
-                    child: Scene(person.cover, person.name.length),
-                  ),
+                  Positioned.fill(child: PhotoImage(person.cover)),
                   Positioned(
                     left: 0,
                     right: 0,
@@ -199,10 +218,10 @@ class _SuggestionCard extends StatelessWidget {
                     person.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: OdysseyType.sans(
-                      14,
+                    style: OdysseyType.display(
+                      18,
                       color: AppColors.ink,
-                      weight: FontWeight.w600,
+                      weight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -245,10 +264,10 @@ class _PersonRow extends StatelessWidget {
                   person.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: OdysseyType.sans(
-                    14.5,
+                  style: OdysseyType.display(
+                    19,
                     color: AppColors.ink,
-                    weight: FontWeight.w600,
+                    weight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 2),

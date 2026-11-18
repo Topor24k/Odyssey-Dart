@@ -5,7 +5,8 @@ import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../theme/odyssey_theme.dart';
 import '../../widgets/kit.dart';
-import '../../widgets/scene.dart';
+import '../../widgets/photo.dart';
+import '../../widgets/photo_tools.dart';
 import '../routes.dart';
 
 /// A story post, read in full like a newsletter piece.
@@ -55,7 +56,13 @@ class StoryScreen extends StatelessWidget {
               ],
               flexibleSpace: FlexibleSpaceBar(
                 stretchModes: const [StretchMode.zoomBackground],
-                background: Scene(story.motif, story.seed),
+                background: GestureDetector(
+                  onTap: () => showPhotoViewer(context, story.photos),
+                  child: Hero(
+                    tag: 'story-${story.id}',
+                    child: PhotoImage(story.photo),
+                  ),
+                ),
               ),
             ),
             SliverToBoxAdapter(
@@ -75,7 +82,7 @@ class StoryScreen extends StatelessWidget {
                       style: OdysseyType.display(
                         34,
                         color: AppColors.ink,
-                        weight: FontWeight.w700,
+                        weight: FontWeight.w500,
                         height: 1.05,
                       ),
                     ),
@@ -137,6 +144,11 @@ class StoryScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+                    if (story.photos.length > 1) ...[
+                      const SizedBox(height: 4),
+                      PhotoGallery(story.photos),
+                      const SizedBox(height: 20),
+                    ],
                     const SizedBox(height: 8),
                     Row(
                       children: [

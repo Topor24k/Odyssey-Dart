@@ -5,7 +5,7 @@ import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../theme/odyssey_theme.dart';
 import '../../widgets/kit.dart';
-import '../../widgets/scene.dart';
+import '../../widgets/photo.dart';
 import '../compose_sheet.dart';
 import '../routes.dart';
 
@@ -24,6 +24,7 @@ class EventScreen extends StatelessWidget {
       listenable: store,
       builder: (context, _) {
         final joined = store.isJoined(event.id);
+        final ended = store.hasEnded(event);
         final going = [
           host,
           for (final id in event.attendeeIds) store.person(id),
@@ -52,7 +53,10 @@ class EventScreen extends StatelessWidget {
                 ),
                 flexibleSpace: FlexibleSpaceBar(
                   stretchModes: const [StretchMode.zoomBackground],
-                  background: Scene(event.motif, event.seed),
+                  background: Hero(
+                    tag: 'event-${event.id}',
+                    child: PhotoImage(event.photo),
+                  ),
                 ),
               ),
               SliverToBoxAdapter(
@@ -62,7 +66,9 @@ class EventScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       StatusPill(
-                        '${event.kind.label} · ${relativeDay(event.start)}',
+                        ended
+                            ? '${event.kind.label} · ${joined ? 'Attended' : 'Over'}'
+                            : '${event.kind.label} · ${relativeDay(event.start)}',
                         icon: event.kind.icon,
                         background: AppColors.sage,
                         foreground: AppColors.sageInk,
@@ -70,11 +76,11 @@ class EventScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       Text(
                         event.title,
-                        style: OdysseyType.sans(
-                          27,
+                        style: OdysseyType.display(
+                          32,
                           color: AppColors.ink,
-                          weight: FontWeight.w700,
-                          height: 1.15,
+                          weight: FontWeight.w500,
+                          height: 1.08,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -173,7 +179,7 @@ class EventScreen extends StatelessWidget {
                         ),
                       const SizedBox(height: 18),
                       SectionHeader(
-                        'Who\'s going',
+                        ended ? 'Who was there' : 'Who\'s going',
                         trailingText: '${going.length}',
                       ),
                       const SizedBox(height: 12),
@@ -228,48 +234,53 @@ class EventScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: joined
-                              ? AppColors.sage
-                              : AppColors.ink,
-                          disabledBackgroundColor: AppColors.line,
-                          shape: const StadiumBorder(),
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                        ),
-                        onPressed: full
-                            ? null
-                            : () {
-                                HapticFeedback.lightImpact();
-                                store.toggleJoin(event.id);
-                                ScaffoldMessenger.of(context)
-                                  ..hideCurrentSnackBar()
-                                  ..showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        store.isJoined(event.id)
-                                            ? 'You\'re going — it\'s on your '
-                                                  'schedule.'
-                                            : 'You left ${event.title}.',
+                    if (ended)
+                      Expanded(
+                        child: _Ended(attended: joined, host: host.firstName),
+                      )
+                    else
+                      Expanded(
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: joined
+                                ? AppColors.sage
+                                : AppColors.ink,
+                            disabledBackgroundColor: AppColors.line,
+                            shape: const StadiumBorder(),
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                          ),
+                          onPressed: full
+                              ? null
+                              : () {
+                                  HapticFeedback.lightImpact();
+                                  store.toggleJoin(event.id);
+                                  ScaffoldMessenger.of(context)
+                                    ..hideCurrentSnackBar()
+                                    ..showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          store.isJoined(event.id)
+                                              ? 'You\'re going — it\'s on your '
+                                                    'schedule.'
+                                              : 'You left ${event.title}.',
+                                        ),
                                       ),
-                                    ),
-                                  );
-                              },
-                        child: Text(
-                          full
-                              ? 'Event full'
-                              : (joined
-                                    ? 'You\'re going · Leave'
-                                    : 'Join this ${event.kind.label.toLowerCase()}'),
-                          style: OdysseyType.sans(
-                            15,
-                            color: joined ? AppColors.sageInk : Colors.white,
-                            weight: FontWeight.w600,
+                                    );
+                                },
+                          child: Text(
+                            full
+                                ? 'Event full'
+                                : (joined
+                                      ? 'You\'re going · Leave'
+                                      : 'Join this ${event.kind.label.toLowerCase()}'),
+                            style: OdysseyType.sans(
+                              15,
+                              color: joined ? AppColors.sageInk : Colors.white,
+                              weight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     const SizedBox(width: 10),
                     RoundIconButton(
                       icon: Icons.mail_outline,
@@ -285,6 +296,48 @@ class EventScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// In place of the join button once the event is over.
+class _Ended extends StatelessWidget {
+  const _Ended({required this.attended, required this.host});
+
+  final bool attended;
+  final String host;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: attended ? AppColors.sage : AppColors.tile,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            attended ? Icons.verified_outlined : Icons.history,
+            size: 18,
+            color: attended ? AppColors.sageInk : AppColors.muted,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              attended
+                  ? 'You attended · marked by $host'
+                  : 'This event is over',
+              style: OdysseyType.sans(
+                14,
+                color: attended ? AppColors.sageInk : AppColors.muted,
+                weight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

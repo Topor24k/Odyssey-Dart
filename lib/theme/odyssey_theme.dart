@@ -23,21 +23,21 @@ abstract final class OdysseyColors {
   static const ember = Color(0xFFA4553A);
 }
 
-/// The in-app palette: a parchment canvas, warm white cards, obsidian
-/// forest for emphasis, aged brass for accents and a soft sage highlight.
+/// The in-app palette, after a well-kept travel journal: a cream page, warm
+/// white cards, deep teal ink and a soft teal highlight, with a little brass.
 abstract final class AppColors {
-  static const canvas = Color(0xFFF5F1E8);
-  static const card = Color(0xFFFFFDF8);
-  static const tile = Color(0xFFEFE9DD);
-  static const line = Color(0xFFE4DBCB);
-  static const ink = Color(0xFF141D15);
-  static const body = Color(0xFF3A3D35);
-  static const muted = Color(0xFF8A8374);
-  static const sage = Color(0xFFDFE6D8);
-  static const sageInk = Color(0xFF52705A);
+  static const canvas = Color(0xFFF6F1E8);
+  static const card = Color(0xFFFFFDF9);
+  static const tile = Color(0xFFEFE9DE);
+  static const line = Color(0xFFE6DFD2);
+  static const ink = Color(0xFF1D3C37);
+  static const body = Color(0xFF4A4E4A);
+  static const muted = Color(0xFF8E8980);
+  static const sage = Color(0xFFDDE9E4);
+  static const sageInk = Color(0xFF2F6157);
   static const brass = Color(0xFF9C7A4A);
   static const brassLight = Color(0xFFC9AA78);
-  static const alert = Color(0xFFB5683F);
+  static const alert = Color(0xFFC8643B);
 }
 
 /// Literary typography: Cormorant Garamond for display and prose, Italiana
@@ -102,6 +102,19 @@ abstract final class OdysseyType {
     fontWeight: weight,
     letterSpacing: letterSpacing,
     height: height,
+  );
+
+  /// Small tracked capitals for labels, e.g. "PLACES · PEOPLE · MOMENTS".
+  static TextStyle caps(
+    double size, {
+    Color color = AppColors.muted,
+    double letterSpacing = 2.2,
+    FontWeight weight = FontWeight.w500,
+  }) => GoogleFonts.inter(
+    fontSize: size,
+    color: color,
+    fontWeight: weight,
+    letterSpacing: letterSpacing,
   );
 
   /// Starts every face downloading so text is ready when it first shows.

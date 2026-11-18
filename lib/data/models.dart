@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../widgets/scene.dart';
+import '../widgets/photo.dart';
 
 /// A wayfarer: a friend, a host, or you.
 class Person {
@@ -17,7 +17,7 @@ class Person {
     this.trips = 0,
     this.friends = 0,
     this.mutuals = 0,
-    this.cover = SceneMotif.karst,
+    this.cover = Photos.haGiangPeak,
   });
 
   final String id;
@@ -35,7 +35,9 @@ class Person {
   final int trips;
   final int friends;
   final int mutuals;
-  final SceneMotif cover;
+
+  /// The photo across the top of their profile.
+  final Photo cover;
 
   String get firstName => name.split(' ').first;
 
@@ -77,8 +79,7 @@ class StoryPost extends Post {
     required this.excerpt,
     required this.paragraphs,
     required this.place,
-    required this.motif,
-    required this.seed,
+    required this.photos,
     required this.readMinutes,
   });
 
@@ -86,9 +87,12 @@ class StoryPost extends Post {
   final String excerpt;
   final List<String> paragraphs;
   final String place;
-  final SceneMotif motif;
-  final int seed;
+
+  /// One or more; the first is the cover.
+  final List<Photo> photos;
   final int readMinutes;
+
+  Photo get photo => photos.first;
 }
 
 /// A short status update.
@@ -101,10 +105,14 @@ class TextPost extends Post {
     super.comments,
     required this.text,
     this.place,
+    this.photo,
   });
 
   final String text;
   final String? place;
+
+  /// A note can carry one photo.
+  final Photo? photo;
 }
 
 /// An invitation to join an event.
@@ -144,8 +152,7 @@ class TripEvent {
     required this.hostId,
     required this.attendeeIds,
     required this.capacity,
-    required this.motif,
-    required this.seed,
+    required this.photo,
     required this.summary,
     required this.highlights,
   });
@@ -159,8 +166,7 @@ class TripEvent {
   final String hostId;
   final List<String> attendeeIds;
   final int capacity;
-  final SceneMotif motif;
-  final int seed;
+  final Photo photo;
   final String summary;
   final List<String> highlights;
 
@@ -195,6 +201,8 @@ class PlanItem {
     this.note,
     this.peopleIds = const [],
     this.eventId,
+    this.photo,
+    this.journalId,
   });
 
   final String id;
@@ -208,6 +216,28 @@ class PlanItem {
 
   /// Set when the entry comes from a joined event.
   final String? eventId;
+
+  /// A picture of where you're going, if there is one.
+  final Photo? photo;
+
+  /// The journal entry you wrote about it, once you'd been.
+  final String? journalId;
+
+  DateTime get end => start.add(length);
+
+  PlanItem withJournal(String? entryId) => PlanItem(
+    id: id,
+    title: title,
+    kind: kind,
+    start: start,
+    length: length,
+    place: place,
+    note: note,
+    peopleIds: peopleIds,
+    eventId: eventId,
+    photo: photo,
+    journalId: entryId,
+  );
 }
 
 /// A travel story pinned to the map.
@@ -219,8 +249,7 @@ class MapStory {
     required this.note,
     required this.place,
     required this.point,
-    required this.motif,
-    required this.seed,
+    required this.photo,
     required this.likes,
     required this.ago,
   });
@@ -231,8 +260,123 @@ class MapStory {
   final String note;
   final String place;
   final LatLng point;
-  final SceneMotif motif;
-  final int seed;
+  final Photo photo;
   final int likes;
   final String ago;
+}
+
+enum EntryKind {
+  story('Story', Icons.auto_stories_outlined),
+  note('Note', Icons.notes_rounded),
+  pin('Map pin', Icons.place_outlined);
+
+  const EntryKind(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
+/// Something you wrote: a story, a short note or a pin on the map. Kept in
+/// your journal whether or not you share it.
+class JournalEntry {
+  const JournalEntry({
+    required this.id,
+    required this.kind,
+    required this.paragraphs,
+    required this.place,
+    required this.date,
+    this.title,
+    this.photos = const [],
+    this.shared = false,
+    this.postId,
+    this.pinId,
+  });
+
+  final String id;
+  final EntryKind kind;
+
+  /// Notes often have none.
+  final String? title;
+  final List<String> paragraphs;
+  final String place;
+  final DateTime date;
+
+  /// A story has one or more; a note has none or one; a pin has one.
+  final List<Photo> photos;
+
+  /// The cover: the first photo, if there is one.
+  Photo? get photo => photos.isEmpty ? null : photos.first;
+
+  /// Shared to Moments (or, for a pin, on the map for everyone).
+  final bool shared;
+
+  /// The feed post made when it was shared.
+  final String? postId;
+
+  /// The map pin, for a [EntryKind.pin].
+  final String? pinId;
+
+  String get text => paragraphs.join('\n\n');
+
+  /// The title, or the opening words of a note.
+  String get heading {
+    if (title != null && title!.isNotEmpty) return title!;
+    final first = paragraphs.isEmpty ? '' : paragraphs.first;
+    return first.length > 60 ? '${first.substring(0, 60).trimRight()}…' : first;
+  }
+
+  int get readMinutes {
+    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    return (words / 200).ceil().clamp(1, 60);
+  }
+
+  /// The feed post for this entry: a story with its photos, or a text post
+  /// with its one photo, if any.
+  Post toPost({
+    required String id,
+    required String ago,
+    int likes = 0,
+    int comments = 0,
+  }) {
+    if (kind == EntryKind.story && photos.isNotEmpty) {
+      final excerpt = paragraphs.isEmpty ? '' : paragraphs.first;
+      return StoryPost(
+        id: id,
+        authorId: 'me',
+        ago: ago,
+        likes: likes,
+        comments: comments,
+        title: heading,
+        excerpt: excerpt.length > 140
+            ? '${excerpt.substring(0, 140).trimRight()}…'
+            : excerpt,
+        paragraphs: paragraphs,
+        place: place,
+        photos: photos,
+        readMinutes: readMinutes,
+      );
+    }
+    return TextPost(
+      id: id,
+      authorId: 'me',
+      ago: ago,
+      likes: likes,
+      comments: comments,
+      text: text,
+      place: place,
+      photo: photo,
+    );
+  }
+
+  JournalEntry shareAs(String postId) => JournalEntry(
+    id: id,
+    kind: kind,
+    paragraphs: paragraphs,
+    place: place,
+    date: date,
+    title: title,
+    photos: photos,
+    shared: true,
+    postId: postId,
+    pinId: pinId,
+  );
 }

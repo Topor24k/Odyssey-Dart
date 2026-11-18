@@ -84,7 +84,7 @@ class _LoginFormState extends State<LoginForm>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Spacer(flex: 2),
-            const SizedBox(height: 28),
+            const SizedBox(height: 18),
             step(
               const AuthTitle('Welcome back,\nwayfarer.', kicker: 'Sign in'),
             ),
@@ -153,7 +153,7 @@ Future<void> showResetSheet(BuildContext context, String email) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: OdysseyColors.forest,
+    backgroundColor: AppColors.canvas,
     builder: (sheetContext) => Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
@@ -216,7 +216,7 @@ class _ResetSheetState extends State<_ResetSheet> {
                 'Reset password',
                 style: OdysseyType.sans(
                   24,
-                  color: Mist.white,
+                  color: Mist.strong,
                   weight: FontWeight.w700,
                 ),
               ),

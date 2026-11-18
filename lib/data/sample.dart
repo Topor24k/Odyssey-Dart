@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../widgets/scene.dart';
+import '../widgets/photo.dart';
 import 'models.dart';
 
 /// The sample world the app opens on. Dates are relative to today, so the
@@ -27,7 +27,7 @@ abstract final class Sample {
       trips: 41,
       friends: 318,
       mutuals: 6,
-      cover: SceneMotif.karst,
+      cover: Photos.quanBaRoad,
     ),
     Person(
       id: 'p-paeng',
@@ -43,7 +43,7 @@ abstract final class Sample {
       trips: 28,
       friends: 204,
       mutuals: 3,
-      cover: SceneMotif.islands,
+      cover: Photos.coronLagoon,
     ),
     Person(
       id: 'p-ayu',
@@ -59,7 +59,7 @@ abstract final class Sample {
       trips: 33,
       friends: 271,
       mutuals: 2,
-      cover: SceneMotif.volcano,
+      cover: Photos.segaraAnak,
     ),
     Person(
       id: 'p-khamla',
@@ -73,7 +73,7 @@ abstract final class Sample {
       trips: 19,
       friends: 142,
       mutuals: 1,
-      cover: SceneMotif.river,
+      cover: Photos.mekongSunset,
     ),
     Person(
       id: 'p-dara',
@@ -87,7 +87,7 @@ abstract final class Sample {
       trips: 15,
       friends: 388,
       mutuals: 4,
-      cover: SceneMotif.temple,
+      cover: Photos.bengMealeaRuins,
     ),
     Person(
       id: 'p-niran',
@@ -101,7 +101,7 @@ abstract final class Sample {
       trips: 57,
       friends: 512,
       mutuals: 5,
-      cover: SceneMotif.karst,
+      cover: Photos.maeHongSonRoad,
     ),
     Person(
       id: 'p-hana',
@@ -117,7 +117,7 @@ abstract final class Sample {
       trips: 11,
       friends: 640,
       mutuals: 7,
-      cover: SceneMotif.lanterns,
+      cover: Photos.georgeTown,
     ),
     Person(
       id: 'p-joel',
@@ -131,7 +131,7 @@ abstract final class Sample {
       trips: 22,
       friends: 97,
       mutuals: 2,
-      cover: SceneMotif.terraces,
+      cover: Photos.batadVillage,
     ),
     Person(
       id: 'p-lea',
@@ -147,7 +147,7 @@ abstract final class Sample {
       trips: 9,
       friends: 76,
       mutuals: 1,
-      cover: SceneMotif.lanterns,
+      cover: Photos.hoiAnStreet,
     ),
   ];
 
@@ -177,8 +177,7 @@ abstract final class Sample {
           'Four days on the Hà Giang loop, where the road is cut into '
           'the limestone and the clouds keep their own schedule.',
       place: 'Hà Giang, Vietnam',
-      motif: SceneMotif.karst,
-      seed: 3,
+      photos: [Photos.haGiangFog, Photos.maPiLengParapet, Photos.nhoQueGorge],
       readMinutes: 6,
       paragraphs: [
         'We left Hà Giang City at six, before the trucks, with two litres of '
@@ -221,8 +220,7 @@ abstract final class Sample {
           'Sailing the Calamianes on a family banca — and the afternoon '
           'we spent lashing bamboo together on a beach with no name.',
       place: 'Coron, Philippines',
-      motif: SceneMotif.islands,
-      seed: 4,
+      photos: [Photos.coronBanca, Photos.kayanganLake, Photos.coronLagoon],
       readMinutes: 5,
       paragraphs: [
         'The banca is called the Tala — "star" — and it is twelve metres of '
@@ -270,8 +268,7 @@ abstract final class Sample {
           'Three days around Lombok\'s great caldera, measured in '
           'switchbacks, porters\' songs and the slow arrival of light.',
       place: 'Lombok, Indonesia',
-      motif: SceneMotif.volcano,
-      seed: 6,
+      photos: [Photos.rinjaniDawn, Photos.rinjaniRim, Photos.segaraAnak],
       readMinutes: 7,
       paragraphs: [
         '"Small steps, every step." The summit push is three hours of scree '
@@ -280,6 +277,108 @@ abstract final class Sample {
             'discussion. Two hours later we watched the sun come up out of '
             'the Bali Sea and light the smoking cone in the lake below.',
         'Ask your operator, directly, what they pay their porters.',
+      ],
+    ),
+    // What you have shared from your journal, oldest at the bottom.
+    journal[1].toPost(id: 'post-me-bridge', ago: '1w', likes: 18, comments: 3),
+    journal[2].toPost(id: 'post-me-trangan', ago: '3w', likes: 64, comments: 9),
+    journal[5].toPost(id: 'post-me-lanha', ago: '9w', likes: 41, comments: 6),
+  ];
+
+  /// Everything you have written before you first sign in: two shared
+  /// stories, a shared tip, a pin, and a few things kept to yourself.
+  static final journal = <JournalEntry>[
+    JournalEntry(
+      id: 'j-coffee',
+      kind: EntryKind.note,
+      date: at(-1, 21, 40),
+      place: 'Hà Nội, Vietnam',
+      photos: const [Photos.eggCoffee],
+      paragraphs: const [
+        'Egg coffee count this week: four. The best was the tiny place up '
+            'three flights of stairs off Hàng Gai — no sign, just a smell.',
+        'Two days until the bus north. I keep repacking the same bag.',
+      ],
+    ),
+    JournalEntry(
+      id: 'j-bridge',
+      kind: EntryKind.note,
+      date: at(-7, 6, 15),
+      place: 'Long Biên Bridge, Hà Nội',
+      shared: true,
+      postId: 'post-me-bridge',
+      paragraphs: const [
+        'Walk Long Biên Bridge at six, before the scooters. Fishermen on '
+            'the sandbanks, the river the colour of milky tea, and the city '
+            'still yawning behind you.',
+      ],
+    ),
+    JournalEntry(
+      id: 'j-trangan',
+      kind: EntryKind.story,
+      title: 'Rowing Through Tràng An',
+      date: at(-19, 16),
+      place: 'Ninh Bình, Vietnam',
+      photos: const [Photos.trangAn],
+      shared: true,
+      postId: 'post-me-trangan',
+      paragraphs: const [
+        'Our rower was a grandmother called Hoa, who steered the sampan with '
+            'her feet and narrated the whole three hours without once '
+            'looking at the water.',
+        'The route threads nine caves. In the longest you duck flat in the '
+            'boat and the limestone passes a hand\'s width above your face, '
+            'dripping. Then the light comes back all at once, green and '
+            'enormous.',
+        'Go after three, when the tour groups have gone back to Hà Nội. '
+            'Bring small notes to tip — and a hat, because there is no shade '
+            'between the caves.',
+      ],
+    ),
+    JournalEntry(
+      id: 'j-kuangsi',
+      kind: EntryKind.story,
+      title: 'Nine Pools Above Luang Prabang',
+      date: at(-41, 11),
+      place: 'Kuang Si, Laos',
+      photos: const [Photos.kuangSi],
+      paragraphs: const [
+        'I meant to swim in the top pool and ended up sitting on a root for '
+            'an hour watching the water turn from milk to turquoise as the '
+            'sun came round.',
+        'Not ready to share this one yet. Some places you want to keep a '
+            'little longer.',
+      ],
+    ),
+    JournalEntry(
+      id: 'j-luang',
+      kind: EntryKind.pin,
+      title: 'Last light on the Mekong',
+      date: at(-44, 18),
+      place: 'Luang Prabang, Laos',
+      photos: const [Photos.luangPrabang],
+      shared: true,
+      pinId: 'm-me-luang',
+      paragraphs: const [
+        'Watched the long boats come home from the steps below Wat Xieng '
+            'Thong. Nobody said a word.',
+      ],
+    ),
+    JournalEntry(
+      id: 'j-lanha',
+      kind: EntryKind.story,
+      title: 'A Night on Lan Hạ Bay',
+      date: at(-63, 19),
+      place: 'Cát Bà, Vietnam',
+      photos: const [Photos.lanHa, Photos.haLongBay],
+      shared: true,
+      postId: 'post-me-lanha',
+      paragraphs: const [
+        'Skip Hạ Long and take the ferry to Cát Bà. Lan Hạ is the same sea '
+            'of limestone with a tenth of the boats.',
+        'We kayaked out at dusk to a floating village where a family sold '
+            'us grilled squid off the side of their house. The water lit up '
+            'with plankton every time a paddle went in.',
       ],
     ),
   ];
@@ -295,8 +394,7 @@ abstract final class Sample {
       hostId: 'p-niran',
       attendeeIds: const ['p-mai', 'p-lea'],
       capacity: 12,
-      motif: SceneMotif.lanterns,
-      seed: 31,
+      photo: Photos.eggCoffee,
       summary:
           'Egg coffee and paper maps. Bring the route you\'re dreaming '
           'about and leave with fuel stops, homestays and a riding buddy.',
@@ -316,8 +414,7 @@ abstract final class Sample {
       hostId: 'p-hana',
       attendeeIds: const ['p-lea', 'p-dara', 'p-khamla'],
       capacity: 10,
-      motif: SceneMotif.lanterns,
-      seed: 13,
+      photo: Photos.bunCha,
       summary:
           'Seven stalls, three generations of cooks, one very full '
           'evening. Small notes and an empty stomach required.',
@@ -337,8 +434,7 @@ abstract final class Sample {
       hostId: 'p-dara',
       attendeeIds: const ['p-hana', 'p-joel'],
       capacity: 8,
-      motif: SceneMotif.temple,
-      seed: 12,
+      photo: Photos.bengMealeaRuins,
       summary:
           'A jungle-claimed temple before the tour buses, with a village '
           'elder who played in these ruins as a boy.',
@@ -358,8 +454,7 @@ abstract final class Sample {
       hostId: 'p-mai',
       attendeeIds: const ['p-niran', 'p-dara', 'p-hana', 'p-joel'],
       capacity: 8,
-      motif: SceneMotif.karst,
-      seed: 71,
+      photo: Photos.dongVanHairpin,
       summary:
           'Four days over the Đồng Văn plateau, timed for the last of '
           'the buckwheat bloom, with homestays in Hmong villages.',
@@ -379,8 +474,7 @@ abstract final class Sample {
       hostId: 'p-paeng',
       attendeeIds: const ['p-hana', 'p-joel', 'p-khamla', 'p-ayu'],
       capacity: 10,
-      motif: SceneMotif.islands,
-      seed: 77,
+      photo: Photos.bancaShallows,
       summary:
           'Three family bancas sailing in company from Coron to El Nido, '
           'camping on community-managed beaches.',
@@ -400,8 +494,7 @@ abstract final class Sample {
       hostId: 'p-ayu',
       attendeeIds: const ['p-mai', 'p-paeng', 'p-niran'],
       capacity: 8,
-      motif: SceneMotif.volcano,
-      seed: 89,
+      photo: Photos.segaraAnak,
       summary:
           'The great caldera crossing with fairly paid porters and a '
           'pack-out pledge for every gram of rubbish.',
@@ -411,13 +504,80 @@ abstract final class Sample {
         'Acclimatisation night in Senaru',
       ],
     ),
+    // Over: you went, and the hosts marked you as there.
+    TripEvent(
+      id: 'e-sketch',
+      title: 'Temple of Literature Sketch Morning',
+      kind: EventKind.gathering,
+      place: 'Đống Đa, Hà Nội',
+      start: at(-10, 7),
+      length: const Duration(hours: 2),
+      hostId: 'p-lea',
+      attendeeIds: const ['p-dara', 'p-niran'],
+      capacity: 10,
+      photo: Photos.vanMieu,
+      summary:
+          'Pencils, a thermos of tea and the quiet courtyards before the '
+          'school groups arrive.',
+      highlights: const [
+        'The Well of Heavenly Clarity at opening time',
+        "A short history of the doctors' stelae",
+        'Bánh mì in the park after',
+      ],
+    ),
+    TripEvent(
+      id: 'e-lanha',
+      title: 'Lan Hạ Kayak Weekend',
+      kind: EventKind.expedition,
+      place: 'Cát Bà, Vietnam',
+      start: at(-64, 7),
+      length: const Duration(days: 2),
+      hostId: 'p-paeng',
+      attendeeIds: const ['p-lea', 'p-khamla'],
+      capacity: 8,
+      photo: Photos.lanHa,
+      summary:
+          'Two days paddling Lan Hạ Bay from Cát Bà, with a night in a '
+          'floating village.',
+      highlights: const [
+        'Sea caves at low tide',
+        'Grilled squid in the floating village',
+        'Night kayaking with the plankton',
+      ],
+    ),
   ];
 
-  /// Events you have already joined when you first sign in.
-  static const joinedEventIds = {'e-coffee', 'e-foodwalk'};
+  /// Events you have joined when you first sign in, including two that are
+  /// over: their hosts marked you as there.
+  static const joinedEventIds = {
+    'e-coffee',
+    'e-foodwalk',
+    'e-sketch',
+    'e-lanha',
+  };
 
   /// Your own travel plan: a few days in Hà Nội, then the Hà Giang loop.
   static final plans = <PlanItem>[
+    // Already been: one written up in your journal, one still to write.
+    PlanItem(
+      id: 'pl-trangan',
+      title: 'Boat through Tràng An',
+      kind: PlanKind.travel,
+      start: at(-19, 13),
+      length: const Duration(hours: 4),
+      place: 'Tràng An, Ninh Bình',
+      photo: Photos.trangAn,
+      journalId: 'j-trangan',
+    ),
+    PlanItem(
+      id: 'pl-duonglam',
+      title: 'Day trip to Đường Lâm',
+      kind: PlanKind.travel,
+      start: at(-3, 8, 30),
+      length: const Duration(hours: 7),
+      place: 'Đường Lâm, Sơn Tây',
+      note: 'Bus 70 from Mỹ Đình. Try the chè lam.',
+    ),
     PlanItem(
       id: 'pl-bike',
       title: 'Rent a semi-automatic',
@@ -444,6 +604,7 @@ abstract final class Sample {
       start: at(1, 9),
       length: const Duration(hours: 2),
       place: 'Đống Đa, Hà Nội',
+      photo: Photos.vanMieu,
     ),
     PlanItem(
       id: 'pl-bus',
@@ -462,6 +623,7 @@ abstract final class Sample {
       length: const Duration(hours: 5),
       place: 'QL4C via Quản Bạ',
       peopleIds: ['p-mai'],
+      photo: Photos.quanBaRoad,
     ),
     PlanItem(
       id: 'pl-lunch',
@@ -470,6 +632,7 @@ abstract final class Sample {
       start: at(2, 13, 30),
       length: const Duration(hours: 1),
       place: 'Quản Bạ',
+      photo: Photos.quanBaValley,
     ),
     PlanItem(
       id: 'pl-stay1',
@@ -487,6 +650,7 @@ abstract final class Sample {
       length: const Duration(hours: 4),
       place: 'via Sủng Là valley',
       peopleIds: ['p-mai'],
+      photo: Photos.dongVanPeaks,
     ),
     PlanItem(
       id: 'pl-pass',
@@ -497,6 +661,7 @@ abstract final class Sample {
       place: 'Đồng Văn → Mèo Vạc',
       note: 'Fog is common before 10:00 — no rush. Walk the parapet trail.',
       peopleIds: ['p-mai'],
+      photo: Photos.maPiLengRidge,
     ),
   ];
 
@@ -510,8 +675,7 @@ abstract final class Sample {
           'still the best hour of the loop.',
       place: 'Mã Pí Lèng Pass, Vietnam',
       point: LatLng(23.2315, 105.4078),
-      motif: SceneMotif.karst,
-      seed: 3,
+      photo: Photos.maPiLengParapet,
       likes: 182,
       ago: '3h',
     ),
@@ -522,8 +686,7 @@ abstract final class Sample {
       note: 'Fuel at Mae Malai. Leave before eight.',
       place: 'Pai, Thailand',
       point: LatLng(19.3591, 98.4422),
-      motif: SceneMotif.karst,
-      seed: 37,
+      photo: Photos.paiCanyon,
       likes: 133,
       ago: '2d',
     ),
@@ -534,8 +697,7 @@ abstract final class Sample {
       note: 'Monks walking the alms round in perfect silence.',
       place: 'Pakbeng, Laos',
       point: LatLng(19.8936, 101.1336),
-      motif: SceneMotif.river,
-      seed: 2,
+      photo: Photos.pakbengBoats,
       likes: 88,
       ago: '4d',
     ),
@@ -546,8 +708,7 @@ abstract final class Sample {
       note: 'An hour alone with the gibbons before the buses.',
       place: 'Beng Mealea, Cambodia',
       point: LatLng(13.4762, 104.2383),
-      motif: SceneMotif.temple,
-      seed: 3,
+      photo: Photos.bengMealeaTrees,
       likes: 120,
       ago: '1w',
     ),
@@ -560,8 +721,7 @@ abstract final class Sample {
           'it.',
       place: 'Batad, Philippines',
       point: LatLng(16.9693, 121.1080),
-      motif: SceneMotif.terraces,
-      seed: 4,
+      photo: Photos.batadTerraces,
       likes: 76,
       ago: '5d',
     ),
@@ -572,8 +732,7 @@ abstract final class Sample {
       note: 'The day boats leave and the lagoon goes quiet.',
       place: 'Coron, Philippines',
       point: LatLng(11.9530, 120.2310),
-      motif: SceneMotif.islands,
-      seed: 12,
+      photo: Photos.kayanganLake,
       likes: 241,
       ago: '1d',
     ),
@@ -584,8 +743,7 @@ abstract final class Sample {
       note: 'Char kway teow, one plate at a time.',
       place: 'George Town, Malaysia',
       point: LatLng(5.4145, 100.3292),
-      motif: SceneMotif.lanterns,
-      seed: 7,
+      photo: Photos.penangHawker,
       likes: 96,
       ago: '5h',
     ),
@@ -596,8 +754,7 @@ abstract final class Sample {
       note: 'We didn\'t make the summit. We made the sunrise.',
       place: 'Mount Rinjani, Indonesia',
       point: LatLng(-8.3935, 116.4590),
-      motif: SceneMotif.volcano,
-      seed: 6,
+      photo: Photos.rinjaniRim,
       likes: 310,
       ago: '3d',
     ),
@@ -608,10 +765,22 @@ abstract final class Sample {
       note: 'Cao lầu from a grandmother who wouldn\'t share the recipe.',
       place: 'Hội An, Vietnam',
       point: LatLng(15.8801, 108.3380),
-      motif: SceneMotif.lanterns,
-      seed: 24,
+      photo: Photos.hoiAnLanterns,
       likes: 54,
       ago: '6d',
+    ),
+    const MapStory(
+      id: 'm-me-luang',
+      authorId: 'me',
+      title: 'Last light on the Mekong',
+      note:
+          'Watched the long boats come home from the steps below Wat Xieng '
+          'Thong. Nobody said a word.',
+      place: 'Luang Prabang, Laos',
+      point: LatLng(19.8920, 102.1347),
+      photo: Photos.luangPrabang,
+      likes: 37,
+      ago: '6w',
     ),
   ];
 }

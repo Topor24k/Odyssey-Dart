@@ -1,114 +1,21 @@
-import 'dart:math' as math;
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 import '../theme/odyssey_theme.dart';
-import '../widgets/contours.dart';
 
-/// The auth palette: white type over a soft, blurred wash in Odyssey's
-/// brass-taupe and forest-sage tones, with obsidian forest for the main
-/// action and parchment for the alternative.
+/// The sign-in palette: deep teal type and hairlines on the cream page.
 abstract final class Mist {
-  static const white = Colors.white;
+  /// Titles, field text and links.
+  static const strong = AppColors.ink;
 
   /// Labels and secondary text.
-  static const soft = Color(0xD9FFFFFF);
+  static const soft = AppColors.muted;
 
   /// Field underlines.
-  static const line = Color(0x99FFFFFF);
-  static const error = Color(0xFF7A2C27);
+  static const line = Color(0xFFCFC6B5);
+  static const error = Color(0xFFA2412F);
 
-  /// The colour of the wash's lower edge, for the system navigation bar.
-  static const base = Color(0xFF98A098);
-
-  /// Lifts white type off the light parts of the wash.
-  static const lift = [
-    Shadow(color: Color(0x2B000000), blurRadius: 12, offset: Offset(0, 1)),
-  ];
-}
-
-/// A soft, out-of-focus wash — warm brass-taupe at the top left, a
-/// parchment glow in the middle, forest-sage below — with the intro's
-/// topographic contour lines traced faintly across it.
-class AuthBackdrop extends StatelessWidget {
-  const AuthBackdrop({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const RepaintBoundary(
-      child: CustomPaint(painter: _MistPainter(), child: SizedBox.expand()),
-    );
-  }
-}
-
-class _MistPainter extends CustomPainter {
-  const _MistPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
-    final rect = Offset.zero & size;
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset.zero,
-          Offset(0, h),
-          const [Color(0xFFB39F86), Color(0xFFBDB6AB), Color(0xFF98A098)],
-          const [0, 0.5, 1],
-        ),
-    );
-    void glow(Offset c, double r, Color color) => canvas.drawCircle(
-      c,
-      r,
-      Paint()
-        ..shader = ui.Gradient.radial(c, r, [
-          color,
-          color.withValues(alpha: 0),
-        ]),
-    );
-    glow(Offset(w * 0.1, h * 0.08), w * 0.9, const Color(0xE6C2A585));
-    glow(Offset(w * 0.66, h * 0.38), w * 0.7, const Color(0xB3DDD6CA));
-    glow(Offset(w * 0.25, h * 0.7), w * 0.6, const Color(0x80CFC9C0));
-    glow(Offset(w * 0.92, h * 0.96), w * 0.9, const Color(0xCC8B988D));
-    // A shadow falling in from the right edge, like a blurred photograph.
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = ui.Gradient.linear(Offset(w * 0.7, 0), Offset(w, 0), const [
-          Color(0x00000000),
-          Color(0x22000000),
-        ]),
-    );
-
-    // Odyssey's survey-sheet contours, barely there.
-    for (final ring in contourRings(size, seed: 23)) {
-      canvas.drawPath(
-        ring.path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = ring.isIndex ? 1.0 : 0.7
-          ..color = Colors.white.withValues(alpha: ring.isIndex ? 0.13 : 0.07),
-      );
-    }
-
-    // Fine photographic grain.
-    final rng = math.Random(4);
-    canvas.drawPoints(
-      ui.PointMode.points,
-      [
-        for (var i = 0; i < (w * h / 90).clamp(400, 9000); i++)
-          Offset(rng.nextDouble() * w, rng.nextDouble() * h),
-      ],
-      Paint()
-        ..strokeWidth = 1
-        ..color = const Color(0x0DFFFFFF),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_MistPainter old) => false;
+  /// The page colour, also used for the system navigation bar.
+  static const base = AppColors.canvas;
 }
 
 /// Fades and lifts a form element in, staggered by [index], as its form
@@ -150,8 +57,8 @@ class Entrance extends StatelessWidget {
   }
 }
 
-/// A small field-journal label over a large serif heading, both centred,
-/// e.g. "SIGN IN" over "Welcome back, wayfarer."
+/// Small tracked capitals over a large serif heading, both centred, e.g.
+/// "SIGN IN" over "Welcome back, wayfarer."
 class AuthTitle extends StatelessWidget {
   const AuthTitle(this.text, {super.key, this.kicker});
 
@@ -167,11 +74,7 @@ class AuthTitle extends StatelessWidget {
           Text(
             kicker!.toUpperCase(),
             textAlign: TextAlign.center,
-            style: OdysseyType.mono(
-              10.5,
-              color: Mist.soft,
-              letterSpacing: 2.6,
-            ).copyWith(shadows: Mist.lift),
+            style: OdysseyType.caps(10, color: Mist.soft, letterSpacing: 2.6),
           ),
           const SizedBox(height: 10),
         ],
@@ -179,11 +82,11 @@ class AuthTitle extends StatelessWidget {
           text,
           textAlign: TextAlign.center,
           style: OdysseyType.display(
-            42,
-            color: Mist.white,
-            weight: FontWeight.w700,
-            height: 1.04,
-          ).copyWith(shadows: Mist.lift),
+            38,
+            color: Mist.strong,
+            weight: FontWeight.w500,
+            height: 1.05,
+          ),
         ),
       ],
     );
@@ -263,14 +166,11 @@ class _LineFieldState extends State<LineField> {
       autocorrect: false,
       textCapitalization: widget.textCapitalization,
       onFieldSubmitted: widget.onSubmitted,
-      cursorColor: Mist.white,
-      style: OdysseyType.sans(17, color: Mist.white, weight: FontWeight.w500),
+      cursorColor: Mist.strong,
+      style: OdysseyType.sans(17, color: Mist.strong, weight: FontWeight.w500),
       decoration: InputDecoration(
         labelText: widget.label,
-        labelStyle: OdysseyType.sans(
-          17,
-          color: Mist.soft,
-        ).copyWith(shadows: Mist.lift),
+        labelStyle: OdysseyType.sans(16.5, color: Mist.soft),
         floatingLabelStyle: OdysseyType.sans(13, color: Mist.soft),
         errorStyle: OdysseyType.sans(
           12.5,
@@ -279,11 +179,11 @@ class _LineFieldState extends State<LineField> {
         ),
         errorMaxLines: 2,
         filled: false,
-        contentPadding: const EdgeInsets.only(top: 18, bottom: 14),
+        contentPadding: const EdgeInsets.only(top: 16, bottom: 12),
         suffixIcon: suffix,
         suffixIconConstraints: const BoxConstraints(),
         enabledBorder: _line(Mist.line, 1),
-        focusedBorder: _line(Mist.white, 1.5),
+        focusedBorder: _line(Mist.strong, 1.5),
         errorBorder: _line(Mist.error, 1),
         focusedErrorBorder: _line(Mist.error, 1.5),
       ),
@@ -305,20 +205,14 @@ class FieldAction extends StatelessWidget {
       borderRadius: BorderRadius.circular(6),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 8, 2, 8),
-        child: Text(
-          label,
-          style: OdysseyType.sans(
-            13.5,
-            color: Mist.soft,
-          ).copyWith(shadows: Mist.lift),
-        ),
+        child: Text(label, style: OdysseyType.sans(13.5, color: Mist.strong)),
       ),
     );
   }
 }
 
-/// A full-width pill: obsidian forest for the main action, parchment for
-/// the alternative. Shows a spinner while [busy].
+/// A full-width pill: deep teal for the main action, warm white for the
+/// alternative. Shows a spinner while [busy].
 class PillButton extends StatelessWidget {
   const PillButton({
     super.key,
@@ -337,8 +231,8 @@ class PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = dark ? OdysseyColors.forest : OdysseyColors.parchment;
-    final fg = dark ? OdysseyColors.parchment : OdysseyColors.forest;
+    final bg = dark ? AppColors.ink : AppColors.card;
+    final fg = dark ? Colors.white : AppColors.ink;
     return Semantics(
       button: true,
       label: label,
@@ -348,15 +242,19 @@ class PillButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: dark ? 0.25 : 0.07),
-              blurRadius: dark ? 20 : 10,
-              offset: Offset(0, dark ? 9 : 4),
+              color: AppColors.ink.withValues(alpha: dark ? 0.25 : 0.06),
+              blurRadius: dark ? 18 : 10,
+              offset: Offset(0, dark ? 8 : 3),
             ),
           ],
         ),
         child: Material(
           color: bg,
-          shape: const StadiumBorder(),
+          shape: StadiumBorder(
+            side: dark
+                ? BorderSide.none
+                : const BorderSide(color: AppColors.line),
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: busy ? null : onPressed,
@@ -372,7 +270,7 @@ class PillButton extends StatelessWidget {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: dark ? OdysseyColors.brassLight : fg,
+                            color: fg,
                           ),
                         )
                       : Row(
@@ -403,8 +301,8 @@ class PillButton extends StatelessWidget {
   }
 }
 
-/// The small rounded checkbox: parchment with a brass tick when on, a white
-/// outline when off.
+/// A small rounded checkbox: teal with a white tick when on, an outline
+/// when off.
 class TickBox extends StatelessWidget {
   const TickBox({
     super.key,
@@ -439,7 +337,7 @@ class TickBox extends StatelessWidget {
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: value ? OdysseyColors.parchment : Colors.transparent,
+                  color: value ? AppColors.ink : Colors.transparent,
                   borderRadius: BorderRadius.circular(5),
                   border: value
                       ? null
@@ -449,11 +347,7 @@ class TickBox extends StatelessWidget {
                         ),
                 ),
                 child: value
-                    ? const Icon(
-                        Icons.check,
-                        size: 15,
-                        color: OdysseyColors.brass,
-                      )
+                    ? const Icon(Icons.check, size: 15, color: Colors.white)
                     : null,
               ),
               const SizedBox(width: 12),
@@ -464,7 +358,7 @@ class TickBox extends StatelessWidget {
                     12,
                     color: error ? Mist.error : Mist.soft,
                     height: 1.35,
-                  ).copyWith(shadows: error ? null : Mist.lift),
+                  ),
                 ),
               ),
             ],
@@ -494,13 +388,7 @@ class FooterPrompt extends StatelessWidget {
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text(
-          '$question  ',
-          style: OdysseyType.sans(
-            13.5,
-            color: Mist.soft,
-          ).copyWith(shadows: Mist.lift),
-        ),
+        Text('$question  ', style: OdysseyType.sans(13.5, color: Mist.soft)),
         InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(4),
@@ -511,12 +399,11 @@ class FooterPrompt extends StatelessWidget {
               style:
                   OdysseyType.sans(
                     13.5,
-                    color: Mist.white,
+                    color: Mist.strong,
                     weight: FontWeight.w600,
                   ).copyWith(
                     decoration: TextDecoration.underline,
-                    decorationColor: Mist.white,
-                    shadows: Mist.lift,
+                    decorationColor: Mist.strong,
                   ),
             ),
           ),

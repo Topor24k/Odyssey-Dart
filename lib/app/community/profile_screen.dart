@@ -6,7 +6,7 @@ import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../theme/odyssey_theme.dart';
 import '../../widgets/kit.dart';
-import '../../widgets/scene.dart';
+import '../../widgets/photo.dart';
 import '../routes.dart';
 
 /// A wayfarer's profile — or yours, with Edit profile and Sign out.
@@ -65,10 +65,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Text(
                           person.name,
-                          style: OdysseyType.sans(
-                            25,
+                          style: OdysseyType.display(
+                            32,
                             color: AppColors.ink,
-                            weight: FontWeight.w700,
+                            weight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -136,6 +136,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ],
                         ),
+                        if (_isMe) ...[
+                          const SizedBox(height: 14),
+                          _LinkRow(
+                            icon: Icons.menu_book_outlined,
+                            label: 'Your journal',
+                            detail: '${_store.journal.length} entries',
+                            onTap: () {
+                              _store.tab.value = 3;
+                              Navigator.of(context)
+                                  .popUntil((route) => route.isFirst);
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          _LinkRow(
+                            icon: Icons.festival_outlined,
+                            label: 'Joined events',
+                            detail: '${_store.attendedEvents.length} attended',
+                            onTap: () {
+                              _store.eventsFilter.value = 3;
+                              _store.tab.value = 4;
+                              Navigator.of(context)
+                                  .popUntil((route) => route.isFirst);
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          _LinkRow(
+                            icon: Icons.photo_camera_outlined,
+                            label: 'Photo credits',
+                            detail: 'Wikimedia Commons',
+                            onTap: () => openPhotoCredits(context),
+                          ),
+                        ],
                         const SizedBox(height: 24),
                         Segmented(
                           options: [
@@ -171,8 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, i) => _tab == 0
                           ? _WorkTile(
-                              motif: stories[i].motif,
-                              seed: stories[i].seed,
+                              photo: stories[i].photo,
                               title: stories[i].title,
                               subtitle:
                                   '${stories[i].place} · '
@@ -180,8 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               onTap: () => openStory(context, stories[i]),
                             )
                           : _WorkTile(
-                              motif: pins[i].motif,
-                              seed: pins[i].seed,
+                              photo: pins[i].photo,
                               title: pins[i].title,
                               subtitle: '${pins[i].place} · ${pins[i].ago}',
                             ),
@@ -215,7 +245,7 @@ class _Cover extends StatelessWidget {
             right: 0,
             top: 0,
             height: 200 + top,
-            child: Scene(person.cover, person.name.length + 7),
+            child: PhotoImage(person.cover),
           ),
           Positioned(
             left: 12,
@@ -307,17 +337,51 @@ class _Button extends StatelessWidget {
   }
 }
 
+class _LinkRow extends StatelessWidget {
+  const _LinkRow({
+    required this.icon,
+    required this.label,
+    required this.detail,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String detail;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppColors.ink),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: OdysseyType.sans(14.5, color: AppColors.ink),
+            ),
+          ),
+          Text(detail.toUpperCase(), style: OdysseyType.caps(9.5)),
+          const Icon(Icons.chevron_right, color: AppColors.muted),
+        ],
+      ),
+    );
+  }
+}
+
 class _WorkTile extends StatelessWidget {
   const _WorkTile({
-    required this.motif,
-    required this.seed,
+    required this.photo,
     required this.title,
     required this.subtitle,
     this.onTap,
   });
 
-  final SceneMotif motif;
-  final int seed;
+  final Photo photo;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
@@ -331,7 +395,11 @@ class _WorkTile extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: SizedBox(width: 64, height: 64, child: Scene(motif, seed)),
+            child: SizedBox(
+              width: 64,
+              height: 64,
+              child: PhotoImage(photo, width: 64),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

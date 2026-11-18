@@ -5,7 +5,9 @@ import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../theme/odyssey_theme.dart';
 import '../../widgets/kit.dart';
-import '../../widgets/scene.dart';
+import '../../widgets/motion.dart';
+import '../../widgets/photo.dart';
+import '../../widgets/photo_tools.dart';
 import '../routes.dart';
 
 /// One feed entry, drawn for its kind.
@@ -22,12 +24,11 @@ class PostCard extends StatelessWidget {
   };
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.post, this.place, this.badge});
+class _Byline extends StatelessWidget {
+  const _Byline({required this.post, this.place});
 
   final Post post;
   final String? place;
-  final Widget? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -35,10 +36,12 @@ class _Header extends StatelessWidget {
     return Row(
       children: [
         GestureDetector(
-          onTap: () => openProfile(context, author),
-          child: Avatar(author, size: 40),
+          onTap: () {
+            openProfile(context, author);
+          },
+          child: Avatar(author, size: 34),
         ),
-        const SizedBox(width: 11),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,22 +51,20 @@ class _Header extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: OdysseyType.sans(
-                  14.5,
+                  13.5,
                   color: AppColors.ink,
                   weight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 1),
               Text(
-                place == null ? post.ago : '${post.ago} · $place',
+                (place == null ? post.ago : '${post.ago} · $place'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: OdysseyType.sans(12, color: AppColors.muted),
+                style: OdysseyType.sans(11.5, color: AppColors.muted),
               ),
             ],
           ),
         ),
-        ?badge,
       ],
     );
   }
@@ -95,6 +96,7 @@ class _Actions extends StatelessWidget {
               color: liked ? AppColors.alert : AppColors.body,
               label: '${store.likesOf(post)}',
               tooltip: liked ? 'Unlike' : 'Like',
+              trigger: liked,
               onTap: () {
                 HapticFeedback.lightImpact();
                 store.toggleLike(post.id);
@@ -109,8 +111,13 @@ class _Actions extends StatelessWidget {
             const Spacer(),
             _Action(
               icon: saved ? Icons.bookmark : Icons.bookmark_border,
+              color: saved ? AppColors.ink : AppColors.body,
               tooltip: saved ? 'Unsave' : 'Save',
-              onTap: () => store.toggleSave(post.id),
+              trigger: saved,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                store.toggleSave(post.id);
+              },
             ),
             _Action(
               icon: Icons.ios_share,
@@ -131,6 +138,7 @@ class _Action extends StatelessWidget {
     required this.onTap,
     this.label,
     this.color = AppColors.body,
+    this.trigger,
   });
 
   final IconData icon;
@@ -138,6 +146,9 @@ class _Action extends StatelessWidget {
   final VoidCallback onTap;
   final String? label;
   final Color color;
+
+  /// The icon bounces when this changes.
+  final Object? trigger;
 
   @override
   Widget build(BuildContext context) {
@@ -150,17 +161,26 @@ class _Action extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
             children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                transitionBuilder: (child, a) =>
-                    ScaleTransition(scale: a, child: child),
-                child: Icon(icon, key: ValueKey(icon), size: 20, color: color),
+              Pop(
+                trigger: trigger,
+                child: Icon(icon, size: 20, color: color),
               ),
               if (label != null) ...[
                 const SizedBox(width: 5),
-                Text(
-                  label!,
-                  style: OdysseyType.sans(13, color: AppColors.body),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, a) => SlideTransition(
+                    position: Tween(
+                      begin: const Offset(0, 0.5),
+                      end: Offset.zero,
+                    ).animate(a),
+                    child: FadeTransition(opacity: a, child: child),
+                  ),
+                  child: Text(
+                    label!,
+                    key: ValueKey(label),
+                    style: OdysseyType.sans(12.5, color: AppColors.body),
+                  ),
                 ),
               ],
             ],
@@ -184,64 +204,67 @@ class _StoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-            child: _Header(
-              post: post,
-              place: post.place,
-              badge: const StatusPill(
-                'Story',
-                icon: Icons.auto_stories_outlined,
-                background: AppColors.tile,
-              ),
+          SizedBox(
+            height: 190,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Hero(tag: 'story-${post.id}', child: PhotoImage(post.photo)),
+                Positioned(
+                  left: 12,
+                  top: 12,
+                  child: StatusPill(
+                    'Story · ${post.readMinutes} min',
+                    icon: Icons.auto_stories_outlined,
+                  ),
+                ),
+                if (post.photos.length > 1)
+                  Positioned(
+                    right: 12,
+                    top: 12,
+                    child: StatusPill(
+                      '${post.photos.length} photos',
+                      icon: Icons.photo_library_outlined,
+                    ),
+                  ),
+              ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: SizedBox(height: 180, child: Scene(post.motif, post.seed)),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(post.place.toUpperCase(), style: OdysseyType.caps(9.5)),
+                const SizedBox(height: 6),
                 Text(
                   post.title,
                   style: OdysseyType.display(
-                    24,
+                    23,
                     color: AppColors.ink,
-                    weight: FontWeight.w700,
-                    height: 1.1,
+                    weight: FontWeight.w500,
+                    height: 1.12,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   post.excerpt,
-                  maxLines: 3,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: OdysseyType.sans(
-                    14,
+                    13.5,
                     color: AppColors.body,
                     height: 1.45,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  'Read story · ${post.readMinutes} min',
-                  style: OdysseyType.sans(
-                    13,
-                    color: AppColors.ink,
-                    weight: FontWeight.w600,
-                  ),
-                ),
+                const SizedBox(height: 12),
+                _Byline(post: post),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(6, 2, 6, 6),
+            padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
             child: _Actions(post),
           ),
         ],
@@ -258,16 +281,30 @@ class _TextCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Header(post: post, place: post.place),
-          const SizedBox(height: 10),
+          _Byline(post: post, place: post.place),
+          const SizedBox(height: 12),
           Text(
             post.text,
-            style: OdysseyType.sans(15, color: AppColors.ink, height: 1.5),
+            style: OdysseyType.display(19, color: AppColors.ink, height: 1.4),
           ),
+          if (post.photo != null) ...[
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => showPhotoViewer(context, [post.photo!]),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: SizedBox(
+                  height: 200,
+                  width: double.infinity,
+                  child: PhotoImage(post.photo!),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 4),
           Transform.translate(
             offset: const Offset(-8, 0),
@@ -288,104 +325,91 @@ class _InviteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = AppStore.instance;
     final event = store.event(post.eventId);
+    final host = store.person(post.authorId);
     final going = [
       store.person(event.hostId),
       for (final id in event.attendeeIds) store.person(id),
     ];
     return AppCard(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+      padding: EdgeInsets.zero,
+      onTap: () => openEvent(context, event),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Header(
-            post: post,
-            badge: StatusPill(
-              'Invite',
-              icon: Icons.mail_outline,
-              background: AppColors.sage,
-              foreground: AppColors.sageInk,
+          SizedBox(
+            height: 150,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Hero(
+                  tag: 'event-${event.id}-${post.id}',
+                  child: PhotoImage(event.photo),
+                ),
+                Positioned(
+                  left: 12,
+                  top: 12,
+                  child: StatusPill(
+                    '${event.kind.label} · ${stampLabel(event.start)}',
+                    icon: event.kind.icon,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            post.note,
-            style: OdysseyType.sans(15, color: AppColors.ink, height: 1.5),
-          ),
-          const SizedBox(height: 12),
-          Material(
-            color: AppColors.tile,
-            borderRadius: BorderRadius.circular(16),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => openEvent(context, event),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Row(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'INVITE FROM ${host.firstName.toUpperCase()}',
+                  style: OdysseyType.caps(9.5, color: AppColors.sageInk),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  event.title,
+                  style: OdysseyType.display(
+                    22,
+                    color: AppColors.ink,
+                    weight: FontWeight.w500,
+                    height: 1.12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  post.note,
+                  style: OdysseyType.sans(
+                    13.5,
+                    color: AppColors.body,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        width: 66,
-                        height: 66,
-                        child: Scene(event.motif, event.seed),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
+                    AvatarStack(going, size: 24),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${event.kind.label.toUpperCase()} · '
-                            '${dayLabel(event.start).toUpperCase()}',
-                            style: OdysseyType.sans(
-                              10.5,
-                              color: AppColors.sageInk,
-                              weight: FontWeight.w600,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            event.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: OdysseyType.sans(
-                              14.5,
-                              color: AppColors.ink,
-                              weight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Row(
-                            children: [
-                              AvatarStack(going, size: 22),
-                              const SizedBox(width: 6),
-                              ListenableBuilder(
-                                listenable: store,
-                                builder: (context, _) => Text(
-                                  '${store.goingCount(event)} going',
-                                  style: OdysseyType.sans(
-                                    12,
-                                    color: AppColors.muted,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      child: ListenableBuilder(
+                        listenable: store,
+                        builder: (context, _) => Text(
+                          '${store.goingCount(event)} going · ${event.place}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: OdysseyType.sans(12, color: AppColors.muted),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     JoinButton(event),
                   ],
                 ),
-              ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Transform.translate(
-            offset: const Offset(-8, 0),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
             child: _Actions(post),
           ),
         ],
